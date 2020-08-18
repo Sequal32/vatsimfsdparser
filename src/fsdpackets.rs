@@ -102,11 +102,11 @@ impl Packet for ATCPosition {
         return ATCPosition {
             name: fields[0].to_string(),
             freq: Frequency::from_packet_string(&fields[1].to_string()),
-            facility: to_enum!(fields[1]),
-            vis_range: fields[2].parse::<u8>().unwrap(),
-            rating: FromPrimitive::from_u8(fields[3].parse::<u8>().unwrap()).unwrap(),
-            lat: fields[4].parse::<f32>().unwrap(),
-            lon: fields[5].parse::<f32>().unwrap()
+            facility: to_enum!(fields[2].to_string()),
+            vis_range: fields[3].parse::<u8>().unwrap(),
+            rating: to_enum!(fields[4].to_string()),
+            lat: fields[5].parse::<f32>().unwrap(),
+            lon: fields[6].parse::<f32>().unwrap()
         }
     }
 }

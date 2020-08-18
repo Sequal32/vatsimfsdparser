@@ -35,7 +35,7 @@ impl Parser {
 }
 
 #[cfg(test)]
-mod tests {
+mod text_message_tests {
     use super::*;
     use crate::fsdpackets::*;
 
@@ -89,5 +89,27 @@ mod tests {
     #[test]
     fn test_private_text_message() {
         test_message!("#TMA:SWA283:", TextMessageReceiver::PrivateMessage);
+    }
+}
+
+
+#[cfg(test)]
+mod position_tests {
+    use super::*;
+    use crate::fsdpackets::*;
+    #[test]
+    fn test_atc_position() {
+        match Parser::parse(&"%BOS_APP:33000:5:150:5:42.35745:-70.98955:0".to_string()) {
+            PacketTypes::ATCPosition(pos) => {
+                assert_eq!(pos.facility, NetworkFacility::APP);
+                assert_eq!(pos.freq.text, "133.000");
+                assert_eq!(pos.lat, 42.35745);
+                assert_eq!(pos.lon, -70.98955);
+                assert_eq!(pos.name, "BOS_APP");
+                assert_eq!(pos.rating, NetworkRating::C2);
+                assert_eq!(pos.vis_range, 150);
+            },
+            _ => panic!("Not the right packet type!")
+        }
     }
 }
