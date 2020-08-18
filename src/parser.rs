@@ -38,8 +38,23 @@ impl Parser {
 mod tests {
     use super::*;
     use crate::fsdpackets::*;
+
+    macro_rules! test_message {
+        ($string: expr, $to_match:path) => {
+            let tm = Parser::parse(&$string.to_string());
+            match tm {
+                PacketTypes::TextMessage(message) => {
+                    match message.receiver {
+                        $to_match => (),
+                        _ => panic!("Not the right receiver type!")
+                    }
+                }
+                _ => panic!("Not the right packet type!")
+            }
+        };
+    }
     #[test]
-    fn test_text_message() {
+    fn test_freq_text_message() {
         let tm = Parser::parse(&"#TMNY_CAM_APP:@28120:EK188,turnrightheading310".to_string());
         match tm {
             PacketTypes::TextMessage(message) => {
@@ -54,5 +69,25 @@ mod tests {
             }
             _ => panic!("Not the right packet type!")
         }
+    }
+
+    #[test]
+    fn test_atc_text_message() {
+        test_message!("#TMA:@49999:", TextMessageReceiver::ATC);
+    }
+
+    #[test]
+    fn test_broadcast_text_message() {
+        test_message!("#TMA:*:", TextMessageReceiver::Broadcast);
+    }
+
+    #[test]
+    fn test_wallop_text_message() {
+        test_message!("#TMA:*S:", TextMessageReceiver::Wallop);
+    }
+
+    #[test]
+    fn test_private_text_message() {
+        test_message!("#TMA:SWA283:", TextMessageReceiver::PrivateMessage);
     }
 }

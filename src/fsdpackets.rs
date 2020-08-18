@@ -11,11 +11,11 @@ pub trait Packet {
 #[derive(PartialEq)]
 #[derive(Debug)]
 pub enum TextMessageReceiver {
-    Broadcast(),
-    Wallop(),
-    ATC(),
+    Broadcast,
+    Wallop,
+    ATC,
+    PrivateMessage,
     Radio(Frequency),
-    PrivateMessage()
 }
 
 #[derive(PartialEq)]
@@ -31,10 +31,14 @@ impl Packet for TextMessage {
         let receiver_str = fields[1];
         let message = fields[2];
 
-        let receiver = match &receiver_str[0..1] {
-            "*" => TextMessageReceiver::Broadcast(),
-            "@" => TextMessageReceiver::Radio(Frequency::from_packet_string(&receiver_str[1..].to_string())),
-            _ => panic!("Invalid message receiver!")
+        let receiver = match receiver_str {
+            "*" => TextMessageReceiver::Broadcast,
+            "*S" => TextMessageReceiver::Wallop,
+            "@49999" => TextMessageReceiver::ATC,
+            _ => match &receiver_str[0..1] {
+                "@" => TextMessageReceiver::Radio(Frequency::from_packet_string(&receiver_str[1..].to_string())),
+                _ => TextMessageReceiver::PrivateMessage
+            }
         };
 
         return TextMessage {
