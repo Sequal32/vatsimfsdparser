@@ -5,7 +5,7 @@ pub struct Frequency {
 }
 
 impl Frequency {
-    pub fn from_packet_string(data: &String) -> Self {
+    pub fn from_packet_string(data: &str) -> Self {
         return Frequency {
             text: format!("1{}.{}", &data[0..2], &data[2..])
         }

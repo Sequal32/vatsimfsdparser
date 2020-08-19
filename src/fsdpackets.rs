@@ -17,38 +17,6 @@ pub enum TextMessageReceiver {
     PrivateMessage,
     Radio(Frequency),
 }
-
-#[derive(PartialEq)]
-#[derive(Debug)]
-pub struct TextMessage {
-    pub sender: String,
-    pub receiver: TextMessageReceiver,
-    pub text: String
-}
-
-impl Packet for TextMessage {
-    fn from_string(fields: &Vec<&str>) -> Self {
-        let receiver_str = fields[1];
-        let message = fields[2];
-
-        let receiver = match receiver_str {
-            "*" => TextMessageReceiver::Broadcast,
-            "*S" => TextMessageReceiver::Wallop,
-            "@49999" => TextMessageReceiver::ATC,
-            _ => match &receiver_str[0..1] {
-                "@" => TextMessageReceiver::Radio(Frequency::from_packet_string(&receiver_str[1..].to_string())),
-                _ => TextMessageReceiver::PrivateMessage
-            }
-        };
-
-        return TextMessage {
-            text: message.to_string(),
-            receiver: receiver,
-            sender: fields[0].to_string()
-        }
-    }
-}
-
 #[derive(FromPrimitive)]
 #[derive(PartialEq)]
 #[derive(Debug)]
@@ -103,31 +71,13 @@ pub enum ProtocolRevision {
     VatsimAuth = 100
 }
 
-macro_rules! to_enum {
-    ($var:expr) => {
-        FromPrimitive::from_u8($var.parse::<u8>().unwrap()).unwrap()
-    };
-}
-
-impl Packet for ATCPosition {
-    fn from_string(fields: &Vec<&str>) -> Self {
-        return ATCPosition {
-            name: fields[0].to_string(),
-            freq: Frequency::from_packet_string(&fields[1].to_string()),
-            facility: to_enum!(fields[2].to_string()),
-            vis_range: fields[3].parse::<u8>().unwrap(),
-            rating: to_enum!(fields[4].to_string()),
-            lat: fields[5].parse::<f32>().unwrap(),
-            lon: fields[6].parse::<f32>().unwrap()
-        }
-    }
-}
-
+// ENUMS //
 #[derive(PartialEq)]
 #[derive(Debug)]
 pub enum NetworkClientType {
     ATC,
-    Pilot(SimulatorType)
+    Pilot(SimulatorType),
+    Undefined
 }
 
 #[derive(PartialEq)]
@@ -136,7 +86,56 @@ pub enum FlightRules {
     IFR,
     VFR,
     DVFR,
-    SVFR
+    SVFR,
+}
+
+#[derive(PartialEq)]
+#[derive(Debug)]
+pub enum SquawkType {
+    Standby, Charlie, Ident
+}
+
+#[derive(PartialEq)]
+#[derive(Debug)]
+pub struct TextMessage {
+    pub sender: String,
+    pub receiver: TextMessageReceiver,
+    pub text: String
+}
+
+impl Packet for TextMessage {
+    fn from_string(fields: &Vec<&str>) -> Self {
+        let receiver_str = fields[1];
+        let message = fields[2];
+
+        let receiver = match receiver_str {
+            "*" => TextMessageReceiver::Broadcast,
+            "*S" => TextMessageReceiver::Wallop,
+            "@49999" => TextMessageReceiver::ATC,
+            _ => match &receiver_str[0..1] {
+                "@" => TextMessageReceiver::Radio(Frequency::from_packet_string(&receiver_str[1..])),
+                _ => TextMessageReceiver::PrivateMessage
+            }
+        };
+
+        return TextMessage {
+            text: message.to_string(),
+            receiver: receiver,
+            sender: fields[0].to_string()
+        }
+    }
+}
+
+macro_rules! to_enum {
+    ($var:expr) => {
+        FromPrimitive::from_u8(force_parse!(u8, $var)).unwrap()
+    };
+}
+
+macro_rules! force_parse {
+    ($to_type:ty, $var:expr) => {
+        $var.parse::<$to_type>().unwrap()
+    };
 }
 
 #[derive(PartialEq)]
@@ -146,16 +145,49 @@ pub struct NetworkClient {
     pub callsign: String,
     pub real_name: String,
     pub cid: String,
-    pub password: String,
     pub rating: NetworkRating,
+}
+
+impl Packet for NetworkClient {
+    fn from_string(fields: &Vec<&str>) -> Self {
+        return NetworkClient::new(fields, NetworkClientType::Undefined);
+    }
+}
+
+impl NetworkClient {
+    fn new(fields: &Vec<&str>, client: NetworkClientType) -> Self {
+        return NetworkClient {
+            callsign: fields[0].to_string(),
+            real_name: fields[2].to_string(),
+            cid: fields[3].to_string(),
+            rating: to_enum!(fields[4]),
+            client_type: client
+        }
+    }
 }
 
 #[derive(PartialEq)]
 #[derive(Debug)]
 pub struct DeleteClient {
-    pub client_type: NetworkClient,
+    pub client_type: NetworkClientType,
     pub callsign: String,
     pub cid: String
+}
+
+impl Packet for DeleteClient {
+    fn from_string(fields: &Vec<&str>) -> Self {
+        return DeleteClient::new(fields, NetworkClientType::Undefined);
+    }
+}
+
+impl DeleteClient {
+    fn new(fields: &Vec<&str>, client: NetworkClientType) -> Self {
+        return DeleteClient {
+            callsign: fields[0].to_string(),
+            cid: fields[1].to_string(),
+            client_type: client
+        }
+    }
 }
 
 #[derive(PartialEq)]
@@ -163,7 +195,8 @@ pub struct DeleteClient {
 pub struct FlightPlan {
     pub callsign: String,
     pub rule: FlightRules,
-    pub equipment: String,
+    pub aircraft_type: String,
+    pub equipment_suffix: Option<String>,
     pub tas: u8,
     pub origin: String,
     pub dep_time: String,
@@ -172,8 +205,8 @@ pub struct FlightPlan {
     pub dest: String,
     pub hours_enroute: u8,
     pub minutes_enroute: u8,
-    pub fuel_avail_hours: String,
-    pub fuel_avail_minutes: String,
+    pub fuel_avail_hours: u8,
+    pub fuel_avail_minutes: u8,
     pub alternate: String,
     pub remarks: String,
     pub route: String,
@@ -181,12 +214,80 @@ pub struct FlightPlan {
     pub amended_by: Option<NetworkClient>
 }
 
+impl Packet for FlightPlan {
+    fn from_string(fields: &Vec<&str>) -> Self {
+        return Self::new(fields, None);
+    }
+}
+
+impl FlightPlan {
+    fn new(fields: &Vec<&str>, amended: Option<NetworkClient>) -> Self {
+        let rule  = match fields[2] {
+            "I" | "IFR" => FlightRules::IFR,
+            "V" | "VFR" => FlightRules::VFR,
+            "D" | "DVFR" => FlightRules::DVFR,
+            "S" | "SVFR" => FlightRules::SVFR
+        };
+        return Self {
+            callsign: fields[0].to_string(),
+            rule: rule,
+            aircraft_type: fields[3][0..5].to_string(),
+            equipment_suffix: if fields[3].len() > 4 {Some(fields[3][5..].to_string())} else {None},
+            tas: force_parse!(u8, fields[4]),
+            origin: fields[5].to_string(),
+            dep_time: fields[6].to_string(),
+            actual_dep_time: fields[7].to_string(),
+            cruise_alt: fields[8].to_string(),
+            dest: fields[9].to_string(),
+            hours_enroute: force_parse!(u8, fields[10]),
+            minutes_enroute: force_parse!(u8, fields[11]),
+            fuel_avail_hours: force_parse!(u8, fields[12]),
+            fuel_avail_minutes: force_parse!(u8, fields[13]),
+            alternate: fields[14].to_string(),
+            remarks: fields[15].to_string(),
+            route: fields[16].to_string(),
+            amended_by: amended
+        }
+    }
+}
+
+#[derive(PartialEq)]
+#[derive(Debug)]
+pub enum HandoffType {
+    Received, Accepted, Cancelled
+}
+
 #[derive(PartialEq)]
 #[derive(Debug)]
 pub struct Handoff {
-    pub from: NetworkClient,
-    pub to: NetworkClient,
-    pub target: NetworkClient
+    pub from: String,
+    pub to: String,
+    pub target: String,
+
+    pub handoff_type: HandoffType
+}
+
+impl Packet for Handoff {
+    fn from_string(fields: &Vec<&str>) -> Self {
+        return Self::new(fields, HandoffType::Received);
+    }
+}
+
+impl Handoff {
+    fn new(fields: &Vec<&str>, handoff_type: HandoffType) -> Self {
+        let target = match handoff_type {
+            HandoffType::Accepted | HandoffType::Received => fields[2],
+            HandoffType::Cancelled => fields[4]
+        };
+
+        return Self {
+            from: fields[0].to_string(),
+            to: fields[1].to_string(),
+            target: target.to_string(),
+
+            handoff_type: handoff_type
+        }
+    }
 }
 
 #[derive(PartialEq)]
@@ -201,10 +302,18 @@ pub struct ATCPosition {
     pub name: String
 }
 
-#[derive(PartialEq)]
-#[derive(Debug)]
-pub enum SquawkType {
-    Standby, Charlie, Ident
+impl Packet for ATCPosition {
+    fn from_string(fields: &Vec<&str>) -> Self {
+        return ATCPosition {
+            name: fields[0].to_string(),
+            freq: Frequency::from_packet_string(&fields[1]),
+            facility: to_enum!(fields[2]),
+            vis_range: force_parse!(u8, fields[3]),
+            rating: to_enum!(fields[4]),
+            lat: fields[5].parse::<f32>().unwrap(),
+            lon: fields[6].parse::<f32>().unwrap()
+        }
+    }
 }
 
 #[derive(PartialEq)]
@@ -256,7 +365,30 @@ pub struct PilotPosition {
     pub true_alt: i32,
     pub pressure_alt: i32,
     pub ground_speed: i32,
-    pub pitch: i32,
-    pub bank: i32,
-    pub heading: i32
+    pub pbh: FlightSurfaces
+}
+
+impl Packet for PilotPosition {
+    fn from_string(fields: &Vec<&str>) -> Self {
+        let squawk_type = match fields[0] {
+            "S" => SquawkType::Standby,
+            "N" => SquawkType::Charlie,
+            "Y" => SquawkType::Ident,
+        };
+
+        let alt = force_parse!(i32, fields[6]);
+
+        return Self {
+            callsign: fields[1].to_string(),
+            transponder_code: force_parse!(u8, fields[2]),
+            squawking: squawk_type,
+            rating: to_enum!(fields[3]),
+            lat: force_parse!(f32, fields[4]),
+            lon: force_parse!(f32, fields[5]),
+            true_alt: alt,
+            pressure_alt: alt + force_parse!(i32, fields[9]),
+            ground_speed: force_parse!(i32, fields[7]),
+            pbh: FlightSurfaces::from_encoded(force_parse!(i64, fields[8]))
+        }
+    }
 }
