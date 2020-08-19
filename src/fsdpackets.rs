@@ -76,7 +76,7 @@ pub enum ProtocolRevision {
 #[derive(Debug)]
 pub enum NetworkClientType {
     ATC,
-    Pilot(SimulatorType),
+    Pilot,
     Undefined
 }
 
@@ -87,12 +87,13 @@ pub enum FlightRules {
     VFR,
     DVFR,
     SVFR,
+    Undefined
 }
 
 #[derive(PartialEq)]
 #[derive(Debug)]
 pub enum SquawkType {
-    Standby, Charlie, Ident
+    Standby, Charlie, Ident, Undefined
 }
 
 #[derive(PartialEq)]
@@ -146,6 +147,7 @@ pub struct NetworkClient {
     pub real_name: String,
     pub cid: String,
     pub rating: NetworkRating,
+    pub simulator_type: Option<SimulatorType>
 }
 
 impl Packet for NetworkClient {
@@ -155,13 +157,88 @@ impl Packet for NetworkClient {
 }
 
 impl NetworkClient {
-    fn new(fields: &Vec<&str>, client: NetworkClientType) -> Self {
+    pub fn new(fields: &Vec<&str>, client: NetworkClientType) -> Self {
+        let sim_type = match client {
+            NetworkClientType::Pilot => Some(to_enum!(fields[6])),
+            _ => None
+        };
+
         return NetworkClient {
             callsign: fields[0].to_string(),
             real_name: fields[2].to_string(),
             cid: fields[3].to_string(),
             rating: to_enum!(fields[4]),
-            client_type: client
+            client_type: client,
+            simulator_type: sim_type
+        }
+    }
+}
+
+#[derive(PartialEq)]
+#[derive(Debug)]
+pub enum SharedStateType {
+    Scratchpad,
+    BeaconCode,
+    VoiceType,
+    TempAlt,
+    Unknown
+}
+
+#[derive(PartialEq)]
+#[derive(Debug)]
+pub struct SharedState {
+    from: String,
+    to: String,
+    target: String,
+    value: String,
+    
+    shared_type: SharedStateType
+}
+
+impl Packet for SharedState {
+    fn from_string(fields: &Vec<&str>) -> Self {
+        return Self::new(fields, SharedStateType::Unknown);
+    }
+}
+
+impl SharedState {
+    pub fn new(fields: &Vec<&str>, shared_type: SharedStateType) -> Self {
+        return Self {
+            from: fields[0].to_string(),
+            to: fields[1].to_string(),
+            target: fields[4].to_string(),
+            value: fields[5].to_string(),
+            shared_type: shared_type
+        }
+    }
+}
+
+#[derive(PartialEq)]
+#[derive(Debug)]
+pub struct FlightStrip {
+    from: String,
+    to: String,
+    target: String,
+    format_id: String,
+    annotations: Vec<String>
+}
+
+impl Packet for FlightStrip {
+    fn from_string(fields: &Vec<&str>) -> Self {
+        let mut annotations: Vec<String> = vec![];
+
+        if fields.len() > 6 {
+            for i in 6..fields.len() {
+                annotations.push(fields[i].to_string());
+            }
+        }
+
+        return Self {
+            from: fields[0].to_string(),
+            to: fields[1].to_string(),
+            target: fields[4].to_string(),
+            format_id: if fields.len() > 5 {fields[5].to_string()} else {"".to_string()},
+            annotations: annotations
         }
     }
 }
@@ -181,7 +258,7 @@ impl Packet for DeleteClient {
 }
 
 impl DeleteClient {
-    fn new(fields: &Vec<&str>, client: NetworkClientType) -> Self {
+    pub fn new(fields: &Vec<&str>, client: NetworkClientType) -> Self {
         return DeleteClient {
             callsign: fields[0].to_string(),
             cid: fields[1].to_string(),
@@ -221,12 +298,13 @@ impl Packet for FlightPlan {
 }
 
 impl FlightPlan {
-    fn new(fields: &Vec<&str>, amended: Option<NetworkClient>) -> Self {
+    pub fn new(fields: &Vec<&str>, amended: Option<NetworkClient>) -> Self {
         let rule  = match fields[2] {
             "I" | "IFR" => FlightRules::IFR,
             "V" | "VFR" => FlightRules::VFR,
             "D" | "DVFR" => FlightRules::DVFR,
-            "S" | "SVFR" => FlightRules::SVFR
+            "S" | "SVFR" => FlightRules::SVFR,
+            _ => FlightRules::Undefined
         };
         return Self {
             callsign: fields[0].to_string(),
@@ -253,31 +331,31 @@ impl FlightPlan {
 
 #[derive(PartialEq)]
 #[derive(Debug)]
-pub enum HandoffType {
-    Received, Accepted, Cancelled
+pub enum TransferControlType {
+    Received, Accepted, Cancelled, IHaveControl, Pointout, PushToDepartures
 }
 
 #[derive(PartialEq)]
 #[derive(Debug)]
-pub struct Handoff {
+pub struct TransferControl {
     pub from: String,
     pub to: String,
     pub target: String,
 
-    pub handoff_type: HandoffType
+    pub transfer_type: TransferControlType
 }
 
-impl Packet for Handoff {
+impl Packet for TransferControl {
     fn from_string(fields: &Vec<&str>) -> Self {
-        return Self::new(fields, HandoffType::Received);
+        return Self::new(fields, TransferControlType::Received);
     }
 }
 
-impl Handoff {
-    fn new(fields: &Vec<&str>, handoff_type: HandoffType) -> Self {
-        let target = match handoff_type {
-            HandoffType::Accepted | HandoffType::Received => fields[2],
-            HandoffType::Cancelled => fields[4]
+impl TransferControl {
+    pub fn new(fields: &Vec<&str>, transfer_type: TransferControlType) -> Self {
+        let target = match transfer_type {
+            TransferControlType::Accepted | TransferControlType::Received => fields[2],
+            _ => fields[4]
         };
 
         return Self {
@@ -285,7 +363,7 @@ impl Handoff {
             to: fields[1].to_string(),
             target: target.to_string(),
 
-            handoff_type: handoff_type
+            transfer_type: transfer_type
         }
     }
 }
@@ -374,6 +452,7 @@ impl Packet for PilotPosition {
             "S" => SquawkType::Standby,
             "N" => SquawkType::Charlie,
             "Y" => SquawkType::Ident,
+            _ => SquawkType::Undefined
         };
 
         let alt = force_parse!(i32, fields[6]);

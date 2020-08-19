@@ -1,35 +1,64 @@
-use crate::fsdpackets::{TextMessage, ATCPosition, Packet};
+use crate::fsdpackets::*;
 
 struct Parser {}
 
 #[derive(PartialEq)]
 enum PacketTypes {
     TextMessage(TextMessage),
-    ATCPosition(ATCPosition)
+    ATCPosition(ATCPosition),
+    PilotPosition(PilotPosition),
+    NetworkClient(NetworkClient),
+    DeleteClient(DeleteClient),
+    TransferControl(TransferControl),
+    SharedState(SharedState),
+    FlightStrip(FlightStrip),
 }
 
 impl Parser {    
     const DELIMETER: &'static str = ":";
 
-    pub fn parse(data: &String) -> PacketTypes {
+    pub fn parse(data: &str) -> Result<PacketTypes, &str> {
         let command_prefix = &data[0..1];
         
         match command_prefix {
-            "#" => {
+            "#" | "$" => {
                 let command = &data[1..3];
                 let fields: &Vec<&str> = &data[3..].split(Parser::DELIMETER).collect();
                 match command {
-                    "TM" => {
-                        return PacketTypes::TextMessage(TextMessage::from_string(fields))
+                    "AA" => Ok(PacketTypes::NetworkClient(NetworkClient::new(fields, NetworkClientType::ATC))),
+                    "DA" => Ok(PacketTypes::DeleteClient(DeleteClient::new(fields, NetworkClientType::ATC))),
+                    "AP" => Ok(PacketTypes::NetworkClient(NetworkClient::new(fields, NetworkClientType::Pilot))),
+                    "DP" => Ok(PacketTypes::DeleteClient(DeleteClient::new(fields, NetworkClientType::Pilot))),
+                    "TM" => Ok(PacketTypes::TextMessage(TextMessage::from_string(fields))),
+                    "#PC" => {
+                        match fields[3] {
+                            "HC" => Ok(PacketTypes::TransferControl(TransferControl::new(fields, TransferControlType::Cancelled))),
+                            "ST" => Ok(PacketTypes::FlightStrip(FlightStrip::from_string(fields))),
+                            "DP" => Ok(PacketTypes::TransferControl(TransferControl::new(fields, TransferControlType::PushToDepartures))),
+                            "PT" => Ok(PacketTypes::TransferControl(TransferControl::new(fields, TransferControlType::Pointout))),
+                            "IH" => Ok(PacketTypes::TransferControl(TransferControl::new(fields, TransferControlType::IHaveControl))),
+                            "SC" => Ok(PacketTypes::SharedState(SharedState::new(fields, SharedStateType::Scratchpad))),
+                            "BC" => Ok(PacketTypes::SharedState(SharedState::new(fields, SharedStateType::BeaconCode))),
+                            "VT" => Ok(PacketTypes::SharedState(SharedState::new(fields, SharedStateType::VoiceType))),
+                            "TA" => Ok(PacketTypes::SharedState(SharedState::new(fields, SharedStateType::TempAlt))),
+                            _ => Err("Type not handled.")
+                        }
                     },
-                    _ => panic!("UH OH")
+                    "HO" => Ok(PacketTypes::TransferControl(TransferControl::new(fields, TransferControlType::Received))),
+                    "HA" => Ok(PacketTypes::TransferControl(TransferControl::new(fields, TransferControlType::Accepted))),
+
+                    _ => Err("Type not handled.")
                 }
             },
             "%" => {
                 let fields: &Vec<&str> = &data[1..].split(Parser::DELIMETER).collect();
-                return PacketTypes::ATCPosition(ATCPosition::from_string(fields))
-            }
-            _ => panic!("UH OH")
+                Ok(PacketTypes::ATCPosition(ATCPosition::from_string(fields)))
+            },
+            "@" => {
+                let fields: &Vec<&str> = &data[1..].split(Parser::DELIMETER).collect();
+                Ok(PacketTypes::PilotPosition(PilotPosition::from_string(fields)))
+            },
+            _ => Err("Type not handled.")
         }
     }
 }
@@ -41,8 +70,8 @@ mod text_message_tests {
 
     macro_rules! test_message {
         ($string: expr, $to_match:path) => {
-            let tm = Parser::parse(&$string.to_string());
-            match tm {
+            let tm = Parser::parse($string);
+            match tm.unwrap() {
                 PacketTypes::TextMessage(message) => {
                     match message.receiver {
                         $to_match => (),
@@ -55,8 +84,8 @@ mod text_message_tests {
     }
     #[test]
     fn test_freq_text_message() {
-        let tm = Parser::parse(&"#TMNY_CAM_APP:@28120:EK188,turnrightheading310".to_string());
-        match tm {
+        let tm = Parser::parse("#TMNY_CAM_APP:@28120:EK188,turnrightheading310");
+        match tm.unwrap() {
             PacketTypes::TextMessage(message) => {
                 assert_eq!(message.sender, "NY_CAM_APP".to_string(), "Sender: {}", message.sender);
                 assert_eq!(message.text, "EK188,turnrightheading310");
@@ -99,7 +128,7 @@ mod position_tests {
     use crate::fsdpackets::*;
     #[test]
     fn test_atc_position() {
-        match Parser::parse(&"%BOS_APP:33000:5:150:5:42.35745:-70.98955:0".to_string()) {
+        match Parser::parse(&"%BOS_APP:33000:5:150:5:42.35745:-70.98955:0".to_string()).unwrap() {
             PacketTypes::ATCPosition(pos) => {
                 assert_eq!(pos.facility, NetworkFacility::APP);
                 assert_eq!(pos.freq.text, "133.000");
