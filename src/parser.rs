@@ -12,6 +12,7 @@ enum PacketTypes {
     TransferControl(TransferControl),
     SharedState(SharedState),
     FlightStrip(FlightStrip),
+    FlightPlan(FlightPlan)
 }
 
 impl Parser {    
@@ -46,6 +47,7 @@ impl Parser {
                     },
                     "HO" => Ok(PacketTypes::TransferControl(TransferControl::new(fields, TransferControlType::Received))),
                     "HA" => Ok(PacketTypes::TransferControl(TransferControl::new(fields, TransferControlType::Accepted))),
+                    "FP" => Ok(PacketTypes::FlightPlan(FlightPlan::from_string(fields))),
 
                     _ => Err("Type not handled.")
                 }
@@ -119,24 +121,65 @@ mod text_message_tests {
     fn test_private_text_message() {
         test_message!("#TMA:SWA283:", TextMessageReceiver::PrivateMessage);
     }
-}
 
-
-#[cfg(test)]
-mod position_tests {
-    use super::*;
-    use crate::fsdpackets::*;
     #[test]
     fn test_atc_position() {
-        match Parser::parse(&"%BOS_APP:33000:5:150:5:42.35745:-70.98955:0".to_string()).unwrap() {
+        match Parser::parse("%BOS_APP:33000:5:150:5:42.35745:-70.98955:0").unwrap() {
             PacketTypes::ATCPosition(pos) => {
                 assert_eq!(pos.facility, NetworkFacility::APP);
                 assert_eq!(pos.freq.text, "133.000");
                 assert_eq!(pos.lat, 42.35745);
                 assert_eq!(pos.lon, -70.98955);
                 assert_eq!(pos.name, "BOS_APP");
-                assert_eq!(pos.rating, NetworkRating::C2);
+                assert_eq!(pos.rating, NetworkRating::C1);
                 assert_eq!(pos.vis_range, 150);
+            },
+            _ => panic!("Not the right packet type!")
+        }
+    }
+
+    #[test]
+    fn test_pilot_position() {
+        match Parser::parse("@S:N513PW:4717:1:41.93848:-72.69294:174:0:4282386784:61").unwrap() {
+            PacketTypes::PilotPosition(pos) => {
+                assert_eq!(pos.callsign, "N513PW");
+                assert_eq!(pos.ground_speed, 0);
+                assert_eq!(pos.squawking, SquawkType::Standby);
+                assert_eq!(pos.squawk_code, 4717);
+                assert_eq!(pos.rating, NetworkRating::OBS);
+                assert_eq!(pos.lat, 41.93848);
+                assert_eq!(pos.lon, -72.69294);
+                assert_eq!(pos.pbh.pitch.round(), 1.0);
+                assert_eq!(pos.pbh.bank.round(), 0.0);
+                assert_eq!(pos.pbh.hdg.round(), 211.0);
+                assert_eq!(pos.true_alt, 174);
+                assert_eq!(pos.pressure_alt, 235);
+            },
+            _ => panic!("Not the right packet type!")
+        }
+    }
+
+    #[test]
+    fn test_flight_plan() {
+        match Parser::parse("$FPSWA1895:*A:I:B738/L:461:KBNA:1835:1835:35000:KRDU:1:14:3:4:KIAD:GFOSTER85PBN/A1B1C1D1S1S2NAV/RNVD1E2A1REG/N8310CEET/KZTL0012KZDC0044SEL/GPCSRMK/SIMBRIEFAIRAC/2009CHARTSONBOARD:TAZMO3BURMEVXVKPASSALDAN2").unwrap() {
+            PacketTypes::FlightPlan(plan) => {
+                assert_eq!(plan.callsign, "SWA1895");
+                assert_eq!(plan.rule, FlightRules::IFR);
+                assert_eq!(plan.aircraft_type, "B738");
+                assert_eq!(plan.equipment_suffix.unwrap(), "/L");
+                assert_eq!(plan.tas, 461);
+                assert_eq!(plan.origin, "KBNA");
+                assert_eq!(plan.dep_time, "1835");
+                assert_eq!(plan.actual_dep_time, "1835");
+                assert_eq!(plan.cruise_alt, 35000);
+                assert_eq!(plan.dest, "KRDU");
+                assert_eq!(plan.hours_enroute, 1);
+                assert_eq!(plan.minutes_enroute, 14);
+                assert_eq!(plan.fuel_avail_hours, 3);
+                assert_eq!(plan.fuel_avail_minutes, 4);
+                assert_eq!(plan.alternate, "KIAD");
+                assert_eq!(plan.remarks, "GFOSTER85PBN/A1B1C1D1S1S2NAV/RNVD1E2A1REG/N8310CEET/KZTL0012KZDC0044SEL/GPCSRMK/SIMBRIEFAIRAC/2009CHARTSONBOARD");
+                assert_eq!(plan.route, "TAZMO3BURMEVXVKPASSALDAN2");
             },
             _ => panic!("Not the right packet type!")
         }

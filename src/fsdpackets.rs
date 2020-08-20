@@ -34,6 +34,7 @@ pub enum NetworkFacility {
 #[derive(PartialEq)]
 #[derive(Debug)]
 pub enum NetworkRating {
+    Undefined,
     OBS,
     S1,
     S2,
@@ -274,11 +275,11 @@ pub struct FlightPlan {
     pub rule: FlightRules,
     pub aircraft_type: String,
     pub equipment_suffix: Option<String>,
-    pub tas: u8,
+    pub tas: u16,
     pub origin: String,
     pub dep_time: String,
     pub actual_dep_time: String,
-    pub cruise_alt: String,
+    pub cruise_alt: u32,
     pub dest: String,
     pub hours_enroute: u8,
     pub minutes_enroute: u8,
@@ -309,13 +310,13 @@ impl FlightPlan {
         return Self {
             callsign: fields[0].to_string(),
             rule: rule,
-            aircraft_type: fields[3][0..5].to_string(),
-            equipment_suffix: if fields[3].len() > 4 {Some(fields[3][5..].to_string())} else {None},
-            tas: force_parse!(u8, fields[4]),
+            aircraft_type: fields[3][0..4].to_string(),
+            equipment_suffix: if fields[3].len() > 4 {Some(fields[3][4..].to_string())} else {None},
+            tas: force_parse!(u16, fields[4]),
             origin: fields[5].to_string(),
             dep_time: fields[6].to_string(),
             actual_dep_time: fields[7].to_string(),
-            cruise_alt: fields[8].to_string(),
+            cruise_alt: force_parse!(u32, fields[8]),
             dest: fields[9].to_string(),
             hours_enroute: force_parse!(u8, fields[10]),
             minutes_enroute: force_parse!(u8, fields[11]),
@@ -397,13 +398,13 @@ impl Packet for ATCPosition {
 #[derive(PartialEq)]
 #[derive(Debug)]
 pub struct FlightSurfaces {
-    pitch: f64,
-    bank: f64,
-    hdg: f64
+    pub pitch: f64,
+    pub bank: f64,
+    pub hdg: f64
 }
 
 impl FlightSurfaces {
-    fn from_encoded(data: i64) -> FlightSurfaces {
+    pub fn from_encoded(data: i64) -> FlightSurfaces {
         let mut pitch_dbl = (data >> 22) as f64 / 1024.0 * -360.0;
         let mut bank_dbl = ((data >> 12) & 0x3FF) as f64 / 1024.0 * -360.0;
         let mut hdg_dbl = ((data >> 2) & 0x3FF) as f64 / 1024.0 * 360.0;
@@ -435,7 +436,7 @@ impl FlightSurfaces {
 #[derive(Debug)]
 pub struct PilotPosition {
     pub callsign: String,
-    pub transponder_code: u8,
+    pub squawk_code: u16,
     pub squawking: SquawkType,
     pub rating: NetworkRating,
     pub lat: f32,
@@ -459,7 +460,7 @@ impl Packet for PilotPosition {
 
         return Self {
             callsign: fields[1].to_string(),
-            transponder_code: force_parse!(u8, fields[2]),
+            squawk_code: force_parse!(u16, fields[2]),
             squawking: squawk_type,
             rating: to_enum!(fields[3]),
             lat: force_parse!(f32, fields[4]),
