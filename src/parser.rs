@@ -13,16 +13,22 @@ pub enum PacketTypes {
     TransferControl(TransferControl),
     SharedState(SharedState),
     FlightStrip(FlightStrip),
-    FlightPlan(FlightPlan)
+    FlightPlan(FlightPlan),
+    ClientQuery(ClientQuery)
 }
 
 impl Parser {    
     const DELIMETER: &'static str = ":";
 
     pub fn parse(data: &str) -> Result<PacketTypes, &str> {
-        let mut data = data.trim().to_string();
-        if data.len() == 0 || !data.chars().next().unwrap().is_ascii() {return Err("No packet");}
-        if data[data.len()-1..data.len()].to_string() == "\0" {data = data[0..data.len() - 1].to_string()}
+        let data = data.trim().to_string();
+
+        if data.len() == 0 {return Err("No packet");}
+        // Make sure first few characters are alphanumeric
+        let mut chars = data.chars();
+        for _ in 0..3 {
+            if !chars.next().unwrap().is_ascii() {return Err("No packet");}
+        }
 
         let command_prefix = &data[0..1];
         match command_prefix {
@@ -52,6 +58,38 @@ impl Parser {
                     "HO" => Ok(PacketTypes::TransferControl(TransferControl::new(fields, TransferControlType::Received))),
                     "HA" => Ok(PacketTypes::TransferControl(TransferControl::new(fields, TransferControlType::Accepted))),
                     "FP" => Ok(PacketTypes::FlightPlan(FlightPlan::from_string(fields))),
+                    "CQ" | "CR" => {
+                        let is_response = command == "CR";
+                        match fields[2] {
+                            "ATC" => Ok(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::IsValidATC, is_response))),
+                            "CAPS" => Ok(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::Capabilities, is_response))),
+                            "C?" => Ok(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::COM1Freq, is_response))),
+                            "RN" => Ok(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::RealName, is_response))),
+                            "SV" => Ok(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::Server, is_response))),
+                            "ATIS" => Ok(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::ATIS, is_response))),
+                            "IP" => Ok(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::PublicIP, is_response))),
+                            "INF" => Ok(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::INF, is_response))),
+                            "FP" => Ok(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::FlightPlan, is_response))),
+                            "IPC" => Ok(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::IPC, is_response))),
+                            "BY" => Ok(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::RequestRelief, is_response))),
+                            "HI" => Ok(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::CancelRequestRelief, is_response))),
+                            "HLP" => Ok(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::RequestHelp, is_response))),
+                            "NOHLP" => Ok(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::CancelRequestHelp, is_response))),
+                            "WH" => Ok(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::WhoHas, is_response))),
+                            "IT" => Ok(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::InitiateTrack, is_response))),
+                            "HT" => Ok(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::AcceptHandoff, is_response))),
+                            "DR" => Ok(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::DropTrack, is_response))),
+                            "FA" => Ok(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::SetFinalAltitude, is_response))),
+                            "TA" => Ok(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::SetTempAltitude, is_response))),
+                            "BC" => Ok(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::SetBeaconCode, is_response))),
+                            "SC" => Ok(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::SetScratchpad, is_response))),
+                            "VT" => Ok(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::SetVoiceType, is_response))),
+                            "ACC" => Ok(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::AircraftConfiguration, is_response))),
+                            "NEWINFO" => Ok(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::NewInfo, is_response))),
+                            "NEWATIS" => Ok(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::NewATIS, is_response))),
+                            _ => Ok(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::Unknown, is_response)))
+                        }
+                    }
 
                     _ => Err("Type not handled.")
                 }

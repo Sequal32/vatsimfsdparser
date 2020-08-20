@@ -133,6 +133,39 @@ pub enum SquawkType {
 
 #[derive(PartialEq)]
 #[derive(Debug)]
+pub enum ClientQueryType
+{
+    Unknown,
+    IsValidATC,
+    Capabilities,
+    COM1Freq,
+    RealName,
+    Server,
+    ATIS,
+    PublicIP,
+    INF,
+    FlightPlan,
+    IPC,
+    RequestRelief,
+    CancelRequestRelief,
+    RequestHelp,
+    CancelRequestHelp,
+    WhoHas,
+    InitiateTrack,
+    AcceptHandoff,
+    DropTrack,
+    SetFinalAltitude,
+    SetTempAltitude,
+    SetBeaconCode,
+    SetScratchpad,
+    SetVoiceType,
+    AircraftConfiguration,
+    NewInfo,
+    NewATIS
+}
+
+#[derive(PartialEq)]
+#[derive(Debug)]
 pub struct TextMessage {
     pub sender: String,
     pub receiver: TextMessageReceiver,
@@ -290,8 +323,7 @@ impl DeleteClient {
 pub struct FlightPlan {
     pub callsign: String,
     pub rule: FlightRules,
-    pub aircraft_type: String,
-    pub equipment_suffix: Option<String>,
+    pub equipment: String,
     pub tas: String,
     pub origin: String,
     pub dep_time: String,
@@ -324,11 +356,11 @@ impl FlightPlan {
             "S" | "SVFR" => FlightRules::SVFR,
             _ => FlightRules::Undefined
         };
+
         return Self {
             callsign: fields[0].to_string(),
             rule: rule,
-            aircraft_type: fields[3][0..4].to_string(),
-            equipment_suffix: if fields[3].len() > 4 {Some(fields[3][4..].to_string())} else {None},
+            equipment: fields[3].to_string(),
             tas: fields[4].to_string(),
             origin: fields[5].to_string(),
             dep_time: fields[6].to_string(),
@@ -486,6 +518,40 @@ impl Packet for PilotPosition {
             pressure_alt: alt + force_parse!(i32, fields[9]),
             ground_speed: force_parse!(i32, fields[7]),
             pbh: FlightSurfaces::from_encoded(force_parse!(i64, fields[8]))
+        }
+    }
+}
+
+#[derive(PartialEq)]
+#[derive(Debug)]
+pub struct ClientQuery {
+    pub is_response: bool,
+    pub from: String,
+    pub to: String,
+    pub query_type: ClientQueryType,
+    pub payload: Vec<String>
+}
+
+impl Packet for ClientQuery {
+    fn from_string(fields: &Vec<&str>) -> Self {
+        return Self::new(fields, ClientQueryType::Unknown, false)
+    }
+}
+
+impl ClientQuery {
+    pub fn new(fields: &Vec<&str>, query_type: ClientQueryType, is_response: bool) -> Self {
+        let mut payload: Vec<String> = vec![];
+        if fields.len() > 3 {
+            for i in 3..fields.len() {
+                payload.push(fields[i].to_string());
+            }
+        }
+        return Self {
+            is_response: is_response,
+            from: fields[0].to_string(),
+            to: fields[1].to_string(),
+            query_type: query_type,
+            payload: payload
         }
     }
 }
