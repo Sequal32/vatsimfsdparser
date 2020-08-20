@@ -4,6 +4,19 @@ use num_traits::FromPrimitive;
 
 use util::{Frequency};
 
+macro_rules! to_enum {
+    ($var:expr) => {
+        FromPrimitive::from_u8(force_parse!(u8, $var))
+    };
+}
+
+macro_rules! force_parse {
+    ($to_type:ty, $var:expr) => {
+        $var.parse::<$to_type>().unwrap()
+    };
+}
+
+
 pub trait Packet {
     fn from_string(fields: &Vec<&str>) -> Self;
 }
@@ -27,7 +40,18 @@ pub enum NetworkFacility {
     GND,
     TWR,
     APP,
-    CTR
+    CTR,
+    Undefined
+}
+
+impl NetworkFacility {
+    fn from_string(data: &str) -> Self {
+        if data == "" {return NetworkFacility::Undefined}
+        match to_enum!(data) {
+            Some(ok) => ok,
+            None => NetworkFacility::Undefined
+        }
+    }
 }
 
 #[derive(FromPrimitive)]
@@ -47,6 +71,16 @@ pub enum NetworkRating {
     I3,
     SUP,
     ADM
+}
+
+impl NetworkRating {
+    fn from_string(data: &str) -> Self {
+        if data == "" {return NetworkRating::Undefined}
+        match to_enum!(data) {
+            Some(ok) => ok,
+            None => NetworkRating::Undefined
+        }
+    }
 }
 
 #[derive(FromPrimitive)]
@@ -128,18 +162,6 @@ impl Packet for TextMessage {
     }
 }
 
-macro_rules! to_enum {
-    ($var:expr) => {
-        FromPrimitive::from_u8(force_parse!(u8, $var)).unwrap()
-    };
-}
-
-macro_rules! force_parse {
-    ($to_type:ty, $var:expr) => {
-        $var.parse::<$to_type>().unwrap()
-    };
-}
-
 #[derive(PartialEq)]
 #[derive(Debug)]
 pub struct NetworkClient {
@@ -163,7 +185,7 @@ impl NetworkClient {
             callsign: fields[0].to_string(),
             real_name: fields[2].to_string(),
             cid: fields[3].to_string(),
-            rating: if fields[4] == "" {NetworkRating::Undefined} else {to_enum!(fields[4])},
+            rating: NetworkRating::from_string(fields[4]),
             client_type: client,
             protocol_ver: force_parse!(u8, fields[5])
         }
@@ -381,9 +403,9 @@ impl Packet for ATCPosition {
         return ATCPosition {
             name: fields[0].to_string(),
             freq: Frequency::from_packet_string(&fields[1]),
-            facility: to_enum!(fields[2]),
+            facility: NetworkFacility::from_string(fields[2]),
             vis_range: force_parse!(u16, fields[3]),
-            rating: to_enum!(fields[4]),
+            rating: NetworkRating::from_string(fields[4]),
             lat: fields[5].parse::<f32>().unwrap(),
             lon: fields[6].parse::<f32>().unwrap()
         }
@@ -457,7 +479,7 @@ impl Packet for PilotPosition {
             callsign: fields[1].to_string(),
             squawk_code: force_parse!(u16, fields[2]),
             squawking: squawk_type,
-            rating: to_enum!(fields[3]),
+            rating: NetworkRating::from_string(fields[3]),
             lat: force_parse!(f32, fields[4]),
             lon: force_parse!(f32, fields[5]),
             true_alt: alt,
@@ -465,5 +487,23 @@ impl Packet for PilotPosition {
             ground_speed: force_parse!(i32, fields[7]),
             pbh: FlightSurfaces::from_encoded(force_parse!(i64, fields[8]))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn test_rating_convert() {
+        assert_eq!(NetworkRating::from_string(""), NetworkRating::Undefined);
+        assert_eq!(NetworkRating::from_string("30"), NetworkRating::Undefined);
+        assert_eq!(NetworkRating::from_string("1"), NetworkRating::OBS);
+    }
+
+    #[test]
+    fn test_facility_convert() {
+        assert_eq!(NetworkFacility::from_string(""), NetworkFacility::Undefined);
+        assert_eq!(NetworkFacility::from_string("30"), NetworkFacility::Undefined);
+        assert_eq!(NetworkFacility::from_string("1"), NetworkFacility::FSS);
     }
 }
