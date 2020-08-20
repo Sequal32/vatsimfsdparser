@@ -1,9 +1,10 @@
 use crate::fsdpackets::*;
 
-struct Parser {}
+pub struct Parser {}
 
 #[derive(PartialEq)]
-enum PacketTypes {
+#[derive(Debug)]
+pub enum PacketTypes {
     TextMessage(TextMessage),
     ATCPosition(ATCPosition),
     PilotPosition(PilotPosition),
@@ -19,8 +20,11 @@ impl Parser {
     const DELIMETER: &'static str = ":";
 
     pub fn parse(data: &str) -> Result<PacketTypes, &str> {
+        let mut data = data.trim().to_string();
+        if data.len() == 0 || !data.chars().next().unwrap().is_ascii() {return Err("No packet");}
+        if data[data.len()-1..data.len()].to_string() == "\0" {data = data[0..data.len() - 1].to_string()}
+
         let command_prefix = &data[0..1];
-        
         match command_prefix {
             "#" | "$" => {
                 let command = &data[1..3];

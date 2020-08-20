@@ -148,7 +148,7 @@ pub struct NetworkClient {
     pub real_name: String,
     pub cid: String,
     pub rating: NetworkRating,
-    pub simulator_type: Option<SimulatorType>
+    pub protocol_ver: u8
 }
 
 impl Packet for NetworkClient {
@@ -159,18 +159,13 @@ impl Packet for NetworkClient {
 
 impl NetworkClient {
     pub fn new(fields: &Vec<&str>, client: NetworkClientType) -> Self {
-        let sim_type = match client {
-            NetworkClientType::Pilot => Some(to_enum!(fields[6])),
-            _ => None
-        };
-
-        return NetworkClient {
+        return Self {
             callsign: fields[0].to_string(),
             real_name: fields[2].to_string(),
             cid: fields[3].to_string(),
-            rating: to_enum!(fields[4]),
+            rating: if fields[4] == "" {NetworkRating::Undefined} else {to_enum!(fields[4])},
             client_type: client,
-            simulator_type: sim_type
+            protocol_ver: force_parse!(u8, fields[5])
         }
     }
 }
@@ -275,16 +270,16 @@ pub struct FlightPlan {
     pub rule: FlightRules,
     pub aircraft_type: String,
     pub equipment_suffix: Option<String>,
-    pub tas: u16,
+    pub tas: String,
     pub origin: String,
     pub dep_time: String,
     pub actual_dep_time: String,
-    pub cruise_alt: u32,
+    pub cruise_alt: String,
     pub dest: String,
-    pub hours_enroute: u8,
-    pub minutes_enroute: u8,
-    pub fuel_avail_hours: u8,
-    pub fuel_avail_minutes: u8,
+    pub hours_enroute: String,
+    pub minutes_enroute: String,
+    pub fuel_avail_hours: String,
+    pub fuel_avail_minutes: String,
     pub alternate: String,
     pub remarks: String,
     pub route: String,
@@ -312,16 +307,16 @@ impl FlightPlan {
             rule: rule,
             aircraft_type: fields[3][0..4].to_string(),
             equipment_suffix: if fields[3].len() > 4 {Some(fields[3][4..].to_string())} else {None},
-            tas: force_parse!(u16, fields[4]),
+            tas: fields[4].to_string(),
             origin: fields[5].to_string(),
             dep_time: fields[6].to_string(),
             actual_dep_time: fields[7].to_string(),
-            cruise_alt: force_parse!(u32, fields[8]),
+            cruise_alt: fields[8].to_string(),
             dest: fields[9].to_string(),
-            hours_enroute: force_parse!(u8, fields[10]),
-            minutes_enroute: force_parse!(u8, fields[11]),
-            fuel_avail_hours: force_parse!(u8, fields[12]),
-            fuel_avail_minutes: force_parse!(u8, fields[13]),
+            hours_enroute: fields[10].to_string(),
+            minutes_enroute: fields[11].to_string(),
+            fuel_avail_hours: fields[12].to_string(),
+            fuel_avail_minutes: fields[13].to_string(),
             alternate: fields[14].to_string(),
             remarks: fields[15].to_string(),
             route: fields[16].to_string(),
@@ -374,7 +369,7 @@ impl TransferControl {
 pub struct ATCPosition {
     pub freq: Frequency,
     pub facility: NetworkFacility,
-    pub vis_range: u8,
+    pub vis_range: u16,
     pub rating: NetworkRating,
     pub lat: f32,
     pub lon: f32,
@@ -387,7 +382,7 @@ impl Packet for ATCPosition {
             name: fields[0].to_string(),
             freq: Frequency::from_packet_string(&fields[1]),
             facility: to_enum!(fields[2]),
-            vis_range: force_parse!(u8, fields[3]),
+            vis_range: force_parse!(u16, fields[3]),
             rating: to_enum!(fields[4]),
             lat: fields[5].parse::<f32>().unwrap(),
             lon: fields[6].parse::<f32>().unwrap()
@@ -457,7 +452,7 @@ impl Packet for PilotPosition {
         };
 
         let alt = force_parse!(i32, fields[6]);
-
+        
         return Self {
             callsign: fields[1].to_string(),
             squawk_code: force_parse!(u16, fields[2]),
