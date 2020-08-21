@@ -202,6 +202,7 @@ pub struct NetworkClient {
     pub callsign: String,
     pub real_name: String,
     pub cid: String,
+    pub password: String,
     pub rating: NetworkRating,
     pub protocol_ver: u8
 }
@@ -214,14 +215,26 @@ impl Packet for NetworkClient {
 
 impl NetworkClient {
     pub fn new(fields: &Vec<&str>, client: NetworkClientType) -> Self {
-        return Self {
-            callsign: fields[0].to_string(),
-            real_name: fields[2].to_string(),
-            cid: fields[3].to_string(),
-            rating: NetworkRating::from_string(fields[4]),
-            client_type: client,
-            protocol_ver: force_parse!(u8, fields[5])
-        }
+        return match client {
+            NetworkClientType::ATC => Self {
+                callsign: fields[0].to_string(),
+                real_name: fields[2].to_string(),
+                cid: fields[3].to_string(),
+                password: fields[4].to_string(),
+                rating: NetworkRating::from_string(fields[5]),
+                protocol_ver: 0,
+                client_type: client
+            },
+            _ => Self {
+                callsign: fields[0].to_string(),
+                cid: fields[2].to_string(),
+                password: fields[3].to_string(),
+                rating: NetworkRating::from_string(fields[4]),
+                protocol_ver: force_parse!(u8, fields[5]),
+                real_name: fields[7].to_string(),
+                client_type: client
+            },
+        };
     }
 }
 

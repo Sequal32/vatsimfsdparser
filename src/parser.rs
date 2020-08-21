@@ -23,7 +23,7 @@ impl Parser {
     pub fn parse(data: &str) -> Result<PacketTypes, &str> {
         let data = data.trim().to_string();
 
-        if data.len() == 0 {return Err("No packet");}
+        if data.len() == 0 || data.find(":") == None {return Err("No packet");}
         // Make sure first few characters are alphanumeric
         let mut chars = data.chars();
         for _ in 0..3 {
@@ -207,8 +207,7 @@ mod text_message_tests {
             PacketTypes::FlightPlan(plan) => {
                 assert_eq!(plan.callsign, "SWA1895");
                 assert_eq!(plan.rule, FlightRules::IFR);
-                assert_eq!(plan.aircraft_type, "B738");
-                assert_eq!(plan.equipment_suffix.unwrap(), "/L");
+                assert_eq!(plan.equipment, "B738/L");
                 assert_eq!(plan.tas, "461");
                 assert_eq!(plan.origin, "KBNA");
                 assert_eq!(plan.dep_time, "1835");
