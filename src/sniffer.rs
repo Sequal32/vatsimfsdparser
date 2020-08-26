@@ -97,7 +97,7 @@ impl Sniffer {
         }
     }
 
-    pub fn get_user_interface(&mut self) { // Prompts user for the interface to use
+    pub fn get_user_interface(&mut self) -> NetworkInterface { // Prompts user for the interface to use
         let mut interfaces = datalink::interfaces();
     
         for (index, interface) in interfaces.iter().enumerate() {
@@ -107,7 +107,10 @@ impl Sniffer {
         println!("Pick an adapter to use: ");
     
         let i: usize = read!();
-        self.using_interface = Some(interfaces.swap_remove(i));
+        let interface = interfaces.swap_remove(i);
+        self.using_interface = Some(interface.clone());
+
+        return interface;
     }
 
     pub fn start(&mut self) { // Establish link
@@ -125,7 +128,7 @@ impl Sniffer {
     }
 
     pub fn next(&mut self) -> Option<EthernetIpv4TCPPacket> {
-        if let Ok(ref mut packet) = self.rx.as_mut().unwrap().next() {
+        if let Ok(packet) = self.rx.as_mut().unwrap().next() {
             return match EthernetIpv4TCPPacket::new(packet) {
                 Ok(full_packet) => Some(full_packet),
                 Err(_) => None
