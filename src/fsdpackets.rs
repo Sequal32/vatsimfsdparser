@@ -351,7 +351,7 @@ pub struct FlightPlan {
     pub remarks: String,
     pub route: String,
 
-    pub amended_by: Option<NetworkClient>
+    pub amended_by: Option<String>
 }
 
 impl Packet for FlightPlan {
@@ -361,13 +361,18 @@ impl Packet for FlightPlan {
 }
 
 impl FlightPlan {
-    pub fn new(fields: &Vec<&str>, amended: Option<NetworkClient>) -> Self {
+    pub fn new(fields: &Vec<&str>, amended: Option<&str>) -> Self {
         let rule  = match fields[2] {
             "I" | "IFR" => FlightRules::IFR,
             "V" | "VFR" => FlightRules::VFR,
             "D" | "DVFR" => FlightRules::DVFR,
             "S" | "SVFR" => FlightRules::SVFR,
             _ => FlightRules::Undefined
+        };
+
+        let amended_by = match amended {
+            Some(callsign) => Some(callsign.to_string()),
+            None => None
         };
 
         return Self {
@@ -387,7 +392,7 @@ impl FlightPlan {
             alternate: fields[14].to_string(),
             remarks: fields[15].to_string(),
             route: fields[16].to_string(),
-            amended_by: amended
+            amended_by: amended_by
         }
     }
 }

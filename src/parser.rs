@@ -41,7 +41,7 @@ impl Parser {
                     "AP" => Ok(PacketTypes::NetworkClient(NetworkClient::new(fields, NetworkClientType::Pilot))),
                     "DP" => Ok(PacketTypes::DeleteClient(DeleteClient::new(fields, NetworkClientType::Pilot))),
                     "TM" => Ok(PacketTypes::TextMessage(TextMessage::from_string(fields))),
-                    "#PC" => {
+                    "PC" => {
                         match fields[3] {
                             "HC" => Ok(PacketTypes::TransferControl(TransferControl::new(fields, TransferControlType::Cancelled))),
                             "ST" => Ok(PacketTypes::FlightStrip(FlightStrip::from_string(fields))),
@@ -58,6 +58,7 @@ impl Parser {
                     "HO" => Ok(PacketTypes::TransferControl(TransferControl::new(fields, TransferControlType::Received))),
                     "HA" => Ok(PacketTypes::TransferControl(TransferControl::new(fields, TransferControlType::Accepted))),
                     "FP" => Ok(PacketTypes::FlightPlan(FlightPlan::from_string(fields))),
+                    "AM" => Ok(PacketTypes::FlightPlan(FlightPlan::new(fields, Some(fields[17])))),
                     "CQ" | "CR" => {
                         let is_response = command == "CR";
                         match fields[2] {

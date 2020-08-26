@@ -7,10 +7,8 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-pcap = "0.7.0"
-text_io = "0.1.8"
-pnet = "0.26.0"
-ascii = "1.0.0"
-requests = "0.0.30"
-num-derive = "0.3.1"
-num-traits = "0.2.12"
+text_io = "0.1"
+pnet = "0.26"
+requests = "0.0"
+num-derive = "0.3"
+num-traits = "0.2"
