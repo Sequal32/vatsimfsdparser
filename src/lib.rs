@@ -1,24 +1,29 @@
-use crate::sniffer::Sniffer;
-use crate::parser::{Parser, PacketTypes};
-use std::net::Ipv4Addr;
-use requests;
-use regex::Regex;
+mod fsdpackets;
+mod parser;
+mod sniffer;
+mod util;
+
+use parser::{Parser, PacketTypes};
 use pnet::datalink::NetworkInterface;
+use regex::Regex;
+use requests;
+use sniffer::PacketSniffer;
 use std::collections::VecDeque;
+use std::net::Ipv4Addr;
 
 
 const VATSIM_SERVER_FEED: &str = "http://cluster.data.vatsim.net/vatsim-servers.txt";
 
-pub struct VatsimSniffer {
-    sniffer: Sniffer,
+pub struct Sniffer {
+    sniffer: PacketSniffer,
     packet_queue: VecDeque<PacketTypes>,
     pub search_ips: Vec<String>
 }
 
-impl VatsimSniffer {
+impl Sniffer {
     pub fn new() -> Self {
         return Self {
-            sniffer: Sniffer::new(),
+            sniffer: PacketSniffer::new(),
             search_ips: vec![],
             packet_queue: VecDeque::new()
         }
@@ -33,8 +38,12 @@ impl VatsimSniffer {
         self.sniffer.start();
     }
 
-    pub fn get_user_interface(&mut self) -> NetworkInterface {
-        return self.sniffer.get_user_interface()
+    pub fn get_available_interfaces(&self) -> Vec<NetworkInterface> {
+        return self.sniffer.get_available_interfaces()
+    }
+
+    pub fn set_user_interface(&mut self, interface: NetworkInterface) {
+        self.sniffer.set_user_interface(interface);
     }
 
     pub fn next(&mut self) -> Option<PacketTypes> {
@@ -83,7 +92,7 @@ mod test {
     use std::str::FromStr;
     #[test]
     fn test_parse_ips() {
-        let mut sniffer = VatsimSniffer::new();
+        let mut sniffer = Sniffer::new();
         sniffer.parse_and_load_server_ips("!GENERAL:
         VERSION = 8
         RELOAD = 2
@@ -105,9 +114,9 @@ mod test {
         ;
         ;   END
         ");
-        assert!(VatsimSniffer::is_valid_ip(&sniffer.search_ips, Ipv4Addr::from_str("165.22.239.218").unwrap()));
-        assert!(VatsimSniffer::is_valid_ip(&sniffer.search_ips, Ipv4Addr::from_str("209.97.177.84").unwrap()));
-        assert!(VatsimSniffer::is_valid_ip(&sniffer.search_ips, Ipv4Addr::from_str("161.35.40.246").unwrap()));
-        assert!(VatsimSniffer::is_valid_ip(&sniffer.search_ips, Ipv4Addr::from_str("18.130.182.47").unwrap()));
+        assert!(Sniffer::is_valid_ip(&sniffer.search_ips, Ipv4Addr::from_str("165.22.239.218").unwrap()));
+        assert!(Sniffer::is_valid_ip(&sniffer.search_ips, Ipv4Addr::from_str("209.97.177.84").unwrap()));
+        assert!(Sniffer::is_valid_ip(&sniffer.search_ips, Ipv4Addr::from_str("161.35.40.246").unwrap()));
+        assert!(Sniffer::is_valid_ip(&sniffer.search_ips, Ipv4Addr::from_str("18.130.182.47").unwrap()));
     }
 }

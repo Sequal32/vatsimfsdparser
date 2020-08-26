@@ -5,7 +5,7 @@ use pnet::datalink::{MacAddr, NetworkInterface, DataLinkReceiver, Channel};
 use pnet::packet::ethernet::{EthernetPacket, EtherTypes};
 use pnet::packet::tcp::TcpPacket;
 
-use std::net::Ipv4Addr;
+use std::{io::{ErrorKind, Error}, net::Ipv4Addr};
 use text_io::read;
 
 pub struct EthernetIpv4TCPPacket<'a> {
@@ -84,33 +84,25 @@ impl<'a> EthernetIpv4TCPPacket<'a> {
     }
 }
 
-pub struct Sniffer {
+pub struct PacketSniffer {
     rx: Option<Box<dyn DataLinkReceiver>>,
     using_interface: Option<NetworkInterface>,
 }
 
-impl Sniffer {
-    pub fn new() -> Sniffer {
-        Sniffer {
+impl PacketSniffer {
+    pub fn new() -> PacketSniffer {
+        PacketSniffer {
             rx: None,
             using_interface: None
         }
     }
 
-    pub fn get_user_interface(&mut self) -> NetworkInterface { // Prompts user for the interface to use
-        let mut interfaces = datalink::interfaces();
-    
-        for (index, interface) in interfaces.iter().enumerate() {
-            println!("{}. {} {}", index, interface.name, interface.ips.iter().map(|ip| ip.to_string() + ", ").collect::<String>());
-        }
-    
-        println!("Pick an adapter to use: ");
-    
-        let i: usize = read!();
-        let interface = interfaces.swap_remove(i);
-        self.using_interface = Some(interface.clone());
+    pub fn get_available_interfaces(&self) -> Vec<NetworkInterface> {
+        return datalink::interfaces();
+    }
 
-        return interface;
+    pub fn set_user_interface(&mut self, interface: NetworkInterface) {
+        self.using_interface = Some(interface.clone());
     }
 
     pub fn start(&mut self) { // Establish link
