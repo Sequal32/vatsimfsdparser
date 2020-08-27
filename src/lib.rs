@@ -1,9 +1,12 @@
 mod fsdpackets;
 mod parser;
+mod managers;
 mod sniffer;
 mod util;
 
-use parser::{Parser, PacketTypes};
+pub use fsdpackets::*;
+pub use managers::*;
+pub use parser::{Parser, PacketTypes};
 use pnet::datalink::NetworkInterface;
 use regex::Regex;
 use requests;
@@ -14,9 +17,15 @@ use std::net::Ipv4Addr;
 
 const VATSIM_SERVER_FEED: &str = "http://cluster.data.vatsim.net/vatsim-servers.txt";
 
+#[derive(Debug)]
+pub enum PacketSource {
+    Server(PacketTypes),
+    Client(PacketTypes)
+}
+
 pub struct Sniffer {
     sniffer: PacketSniffer,
-    packet_queue: VecDeque<PacketTypes>,
+    packet_queue: VecDeque<PacketSource>,
     pub search_ips: Vec<String>
 }
 
@@ -46,17 +55,24 @@ impl Sniffer {
         self.sniffer.set_user_interface(interface);
     }
 
-    pub fn next(&mut self) -> Option<PacketTypes> {
+    pub fn next(&mut self) -> Option<PacketSource> {
         if self.packet_queue.len() > 0 {return self.packet_queue.pop_front()}
 
         let packet = self.sniffer.next();
         match packet {
             Some(packet) => {
-                if Self::is_valid_ip(&self.search_ips, packet.get_destination_ip()) || Self::is_valid_ip(&self.search_ips, packet.get_source_ip()) {
+                let from_server = Self::is_valid_ip(&self.search_ips, packet.get_source_ip());
+                if from_server || Self::is_valid_ip(&self.search_ips, packet.get_destination_ip()) {
                     let text = &packet.get_payload_as_ascii();
                     for payload in text.split("\n") {
                         if let Some(packet) = Parser::parse(payload) {
-                            self.packet_queue.push_back(packet);
+
+                            if from_server {
+                                self.packet_queue.push_back(PacketSource::Server(packet));
+                            }
+                            else {
+                                self.packet_queue.push_back(PacketSource::Client(packet));
+                            }
                         }
                     }
                 }

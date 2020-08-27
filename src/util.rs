@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use serde_json::{self, Value};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 #[derive(Serialize, Deserialize)]
 pub struct Frequency {
     pub text: String
@@ -16,7 +16,7 @@ impl Frequency {
     }
 }
 // All structs related to aircraft configuration
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 #[derive(Serialize, Deserialize)]
 pub struct AircraftLights {
     strobe_on: bool,
@@ -38,7 +38,7 @@ impl Default for AircraftLights {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 #[derive(Serialize, Deserialize)]
 pub struct AircraftEngine {
     on: bool
@@ -52,7 +52,7 @@ impl Default for AircraftEngine {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct AircraftConfiguration {
     lights: AircraftLights,
     engines: HashMap<String, AircraftEngine>,
