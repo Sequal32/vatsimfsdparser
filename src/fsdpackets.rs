@@ -1,8 +1,8 @@
-use crate::util;
 use num_derive::FromPrimitive;    
 use num_traits::FromPrimitive;
 
-use util::{Frequency};
+use crate::util::{Frequency, AircraftConfiguration};
+use serde_json::Value;
 
 macro_rules! to_enum {
     ($var:expr) => {
@@ -540,14 +540,51 @@ impl Packet for PilotPosition {
     }
 }
 
-#[derive(PartialEq)]
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
+pub enum ClientQueryPayload {
+    AcceptHandoff(String, String), // Aircraft Callsign, From ATC
+    AircraftConfiguration(Value),
+    DropTrack(String), // Callsign target
+    FlightPlan(String), // Callsign of target
+    InitiateTrack(String), // Callsign
+    IsValidATCQuery(String), // Callsign target
+    IsValidATCResponse(bool, String), // IsValid, Callsign target
+    NewATIS(String), // ATIS
+    NewInfo(String), // Controller info
+    RealName(RealNamePayload),
+    SetFinalAltitude(String, String), // Callsign, final altitude
+    SetBeaconCode(String, String), // Callsign, Data
+    SetScratchpad(String, String), // Callsign, Data
+    SetTempAltitude(String, String), // Callsign, Altitude
+    SetVoiceType(String, String), // Callsign target, data
+    Unknown(Vec<String>),
+    WhoHas(String),
+}
+
+#[derive(Debug, PartialEq)]
+pub struct RealNamePayload {
+    real_name: String,
+    facility_name: String, 
+    rating: NetworkRating
+}
+
+impl RealNamePayload {
+    fn from_payload(payload: &Vec<String>) -> Self {
+        Self {
+            real_name: payload[0].to_string(),
+            facility_name: payload[1].to_string(),
+            rating: to_enum!(payload[2]).unwrap(),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
 pub struct ClientQuery {
     pub is_response: bool,
     pub from: String,
     pub to: String,
     pub query_type: ClientQueryType,
-    pub payload: Vec<String>
+    pub payload: ClientQueryPayload
 }
 
 impl Packet for ClientQuery {
@@ -564,6 +601,29 @@ impl ClientQuery {
                 payload.push(fields[i].to_string());
             }
         }
+        // Determine payload
+        let payload = match query_type {
+            ClientQueryType::AcceptHandoff => ClientQueryPayload::AcceptHandoff(payload.swap_remove(0), payload.swap_remove(1)),
+            ClientQueryType::AircraftConfiguration => ClientQueryPayload::AircraftConfiguration(serde_json::from_str(payload.swap_remove(0).as_str()).unwrap()),
+            ClientQueryType::DropTrack => ClientQueryPayload::DropTrack(payload.swap_remove(0)),
+            ClientQueryType::FlightPlan => ClientQueryPayload::FlightPlan(payload.swap_remove(0)),
+            ClientQueryType::InitiateTrack => ClientQueryPayload::InitiateTrack(payload.swap_remove(0)),
+            ClientQueryType::IsValidATC => match is_response {
+                false => ClientQueryPayload::IsValidATCQuery(payload.swap_remove(0)),
+                true => ClientQueryPayload::IsValidATCResponse(if payload[0] == "Y" {true} else {false}, payload.swap_remove(1))
+            },
+            ClientQueryType::NewATIS => ClientQueryPayload::NewATIS(payload.swap_remove(0)),
+            ClientQueryType::NewInfo => ClientQueryPayload::NewInfo(payload.swap_remove(0)),
+            ClientQueryType::RealName => ClientQueryPayload::RealName(RealNamePayload::from_payload(&payload)),
+            ClientQueryType::SetBeaconCode => ClientQueryPayload::SetBeaconCode(payload.swap_remove(0), payload.swap_remove(1)),
+            ClientQueryType::SetFinalAltitude => ClientQueryPayload::SetFinalAltitude(payload.swap_remove(0), payload.swap_remove(1)),
+            ClientQueryType::SetScratchpad => ClientQueryPayload::SetScratchpad(payload.swap_remove(0), payload.swap_remove(1)),
+            ClientQueryType::SetTempAltitude => ClientQueryPayload::SetTempAltitude(payload.swap_remove(0), payload.swap_remove(1)),
+            ClientQueryType::SetVoiceType => ClientQueryPayload::SetVoiceType(payload.swap_remove(0), payload.swap_remove(1)),
+            ClientQueryType::WhoHas => ClientQueryPayload::WhoHas(payload.swap_remove(0)),
+            _ => ClientQueryPayload::Unknown(payload)
+        };
+        
         return Self {
             is_response: is_response,
             from: fields[0].to_string(),
