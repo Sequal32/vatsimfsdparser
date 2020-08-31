@@ -3,6 +3,7 @@ use num_traits::FromPrimitive;
 
 use crate::util::{Frequency, AircraftConfiguration};
 use serde_json::Value;
+use std::fmt::{Formatter, Result};
 
 macro_rules! to_enum {
     ($var:expr) => {
@@ -68,6 +69,26 @@ pub enum NetworkRating {
     I3,
     SUP,
     ADM
+}
+
+impl std::fmt::Display for NetworkRating {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        match self {
+            NetworkRating::Undefined => write!(f, "{}", "Undefined"),
+            NetworkRating::OBS => write!(f, "{}", "OBS"),
+            NetworkRating::S1 => write!(f, "{}", "S1"),
+            NetworkRating::S2 => write!(f, "{}", "S2"),
+            NetworkRating::S3 => write!(f, "{}", "S3"),
+            NetworkRating::C1 => write!(f, "{}", "C1"),
+            NetworkRating::C2 => write!(f, "{}", "C2"),
+            NetworkRating::C3 => write!(f, "{}", "C3"),
+            NetworkRating::I1 => write!(f, "{}", "I1"),
+            NetworkRating::I2 => write!(f, "{}", "I2"),
+            NetworkRating::I3 => write!(f, "{}", "I3"),
+            NetworkRating::SUP => write!(f, "{}", "SUP"),
+            NetworkRating::ADM => write!(f, "{}", "ADM"),
+        }
+    }
 }
 
 impl NetworkRating {
@@ -238,12 +259,12 @@ pub enum SharedStateType {
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct SharedState {
-    from: String,
-    to: String,
-    target: String,
-    value: String,
+    pub from: String,
+    pub to: String,
+    pub target: String,
+    pub value: String,
     
-    shared_type: SharedStateType
+    pub shared_type: SharedStateType
 }
 
 impl Packet for SharedState {
@@ -266,11 +287,11 @@ impl SharedState {
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct FlightStrip {
-    from: String,
-    to: String,
-    target: String,
-    format_id: String,
-    annotations: Vec<String>
+    pub from: String,
+    pub to: String,
+    pub target: String,
+    pub format_id: String,
+    pub annotations: Vec<String>
 }
 
 impl Packet for FlightStrip {
@@ -542,9 +563,9 @@ pub enum ClientQueryPayload {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct RealNamePayload {
-    real_name: String,
-    facility_name: String, 
-    rating: NetworkRating
+    pub real_name: String,
+    pub facility_name: String, 
+    pub rating: NetworkRating
 }
 
 impl RealNamePayload {

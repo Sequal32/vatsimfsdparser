@@ -1,0 +1,3 @@
+[submodule "modules/libpnet"]
+	path = modules/libpnet
+	url = git@github.com:libpnet/libpnet.git

@@ -101,7 +101,7 @@ impl PacketSniffer {
         return datalink::interfaces();
     }
 
-    pub fn set_user_interface(&mut self, interface: NetworkInterface) {
+    pub fn set_user_interface(&mut self, interface: &NetworkInterface) {
         self.using_interface = Some(interface.clone());
     }
 

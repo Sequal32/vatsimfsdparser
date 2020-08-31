@@ -51,7 +51,7 @@ impl Sniffer {
         return self.sniffer.get_available_interfaces()
     }
 
-    pub fn set_user_interface(&mut self, interface: NetworkInterface) {
+    pub fn set_user_interface(&mut self, interface: &NetworkInterface) {
         self.sniffer.set_user_interface(interface);
     }
 
