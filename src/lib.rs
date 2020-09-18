@@ -8,6 +8,6 @@ pub use fsdpackets::*;
 pub use parser::{Parser, PacketTypes};
 
 #[cfg(feature = "sniffer")]
-pub use sniffer::Sniffer;
+pub use sniffer::{Sniffer, PacketSource};
 #[cfg(feature = "sniffer")]
 pub use managers::*;

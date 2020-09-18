@@ -1,4 +1,5 @@
 #![cfg(feature = "sniffer")]
+use crate::parser::{PacketTypes, Parser};
 use pnet::datalink;
 use pnet::datalink::{MacAddr, NetworkInterface, DataLinkReceiver, Channel};
 use pnet::packet::ethernet::{EthernetPacket, EtherTypes};

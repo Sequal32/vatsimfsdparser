@@ -112,7 +112,7 @@ impl Parser {
 }
 
 #[cfg(test)]
-mod text_message_tests {
+mod test {
     use super::*;
     use crate::fsdpackets::*;
 
@@ -249,6 +249,39 @@ mod text_message_tests {
                 assert_eq!(metar.is_response, true);
                 assert_eq!(metar.payload, "KBOS 180154Z 02011KT 10SM SCT060 OVC250 18/13 A3000 RMK AO2 SLP159 T01780128");
             },
+            _ => panic!("Not the right packet type!")
+        }
+    }
+
+    #[test]
+    fn test_strip() {
+        match Parser::parse("#PCBOS_GND:BOS_TWR:CCP:ST:DAL2463:1:A::B::G:C:::").unwrap() {
+            PacketTypes::FlightStrip(fs) => {
+                assert_eq!(fs.target, "DAL2463");
+                assert_eq!(fs.to, "BOS_TWR");
+                assert_eq!(fs.from, "BOS_GND");
+                assert_eq!(fs.format_id, "1");
+                assert_eq!(fs.annotations[0], "A");
+            },
+            _ => panic!("Not the right packet type!")
+        }
+    }
+
+    #[test]
+    fn test_squawk_set() {
+        match Parser::parse("$CQBOS_GND:@94835:BC:DAL1:1001").unwrap() {
+            PacketTypes::ClientQuery(cq) => {
+                assert_eq!(cq.from, "BOS_GND");
+                assert_eq!(cq.to, "@94835");
+                assert_eq!(cq.is_response, false);
+                match cq.payload {
+                    ClientQueryPayload::SetBeaconCode(callsign, code) => {
+                        assert_eq!(callsign, "DAL1");
+                        assert_eq!(code, "1001");
+                    },
+                    _ => ()
+                }
+            }
             _ => panic!("Not the right packet type!")
         }
     }
