@@ -611,7 +611,7 @@ impl ClientQuery {
             ClientQueryType::FlightPlan => ClientQueryPayload::FlightPlan(payload.swap_remove(0)),
             ClientQueryType::InitiateTrack => ClientQueryPayload::InitiateTrack(payload.swap_remove(0)),
             ClientQueryType::IsValidATC => match is_response {
-                false => ClientQueryPayload::IsValidATCQuery(payload.swap_remove(0)),
+                false => if payload.len() > 0 {ClientQueryPayload::IsValidATCQuery(payload.swap_remove(0))} else {ClientQueryPayload::Unknown(payload)},
                 true => ClientQueryPayload::IsValidATCResponse(if payload[0] == "Y" {true} else {false}, payload.swap_remove(0))
             },
             ClientQueryType::NewATIS => ClientQueryPayload::NewATIS(payload.swap_remove(0)),

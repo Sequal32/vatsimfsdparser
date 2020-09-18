@@ -173,7 +173,7 @@ mod text_message_tests {
                 assert_eq!(pos.freq.text, "133.000");
                 assert_eq!(pos.lat, 42.35745);
                 assert_eq!(pos.lon, -70.98955);
-                assert_eq!(pos.name, "BOS_APP");
+                assert_eq!(pos.callsign, "BOS_APP");
                 assert_eq!(pos.rating, NetworkRating::C1);
                 assert_eq!(pos.vis_range, 150);
             },
