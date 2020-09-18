@@ -14,7 +14,8 @@ pub enum PacketTypes {
     SharedState(SharedState),
     FlightStrip(FlightStrip),
     FlightPlan(FlightPlan),
-    ClientQuery(ClientQuery)
+    ClientQuery(ClientQuery),
+    Metar(Metar),
 }
 
 impl Parser {    
@@ -59,6 +60,8 @@ impl Parser {
                     "HA" => Some(PacketTypes::TransferControl(TransferControl::new(fields, TransferControlType::Accepted))),
                     "FP" => Some(PacketTypes::FlightPlan(FlightPlan::from_string(fields))),
                     "AM" => Some(PacketTypes::FlightPlan(FlightPlan::new(fields, Some(fields[17])))),
+                    "AR" => Some(PacketTypes::Metar(Metar::new(fields, true))),
+                    "AX" => Some(PacketTypes::Metar(Metar::new(fields, false))),
                     "CQ" | "CR" => {
                         let is_response = command == "CR";
                         match fields[2] {
@@ -222,6 +225,29 @@ mod text_message_tests {
                 assert_eq!(plan.alternate, "KIAD");
                 assert_eq!(plan.remarks, "GFOSTER85PBN/A1B1C1D1S1S2NAV/RNVD1E2A1REG/N8310CEET/KZTL0012KZDC0044SEL/GPCSRMK/SIMBRIEFAIRAC/2009CHARTSONBOARD");
                 assert_eq!(plan.route, "TAZMO3BURMEVXVKPASSALDAN2");
+            },
+            _ => panic!("Not the right packet type!")
+        }
+    }
+
+    #[test]
+    fn test_metar() {
+        match Parser::parse("$AXBOS_GND:SERVER:METAR:KBOS").unwrap() {
+            PacketTypes::Metar(metar) => {
+                assert_eq!(metar.from, "BOS_GND");
+                assert_eq!(metar.to, "SERVER");
+                assert_eq!(metar.is_response, false);
+                assert_eq!(metar.payload, "KBOS");
+            },
+            _ => panic!("Not the right packet type!")
+        }
+
+        match Parser::parse("$ARSERVER:BOS_GND:METAR:KBOS 180154Z 02011KT 10SM SCT060 OVC250 18/13 A3000 RMK AO2 SLP159 T01780128").unwrap() {
+            PacketTypes::Metar(metar) => {
+                assert_eq!(metar.to, "BOS_GND");
+                assert_eq!(metar.from, "SERVER");
+                assert_eq!(metar.is_response, true);
+                assert_eq!(metar.payload, "KBOS 180154Z 02011KT 10SM SCT060 OVC250 18/13 A3000 RMK AO2 SLP159 T01780128");
             },
             _ => panic!("Not the right packet type!")
         }

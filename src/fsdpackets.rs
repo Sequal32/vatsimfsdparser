@@ -639,6 +639,31 @@ impl ClientQuery {
     }
 }
 
+#[derive(Debug, PartialEq, Clone)]
+pub struct Metar {
+    pub is_response: bool,
+    pub from: String,
+    pub to: String,
+    pub payload: String
+}
+
+impl Packet for Metar {
+    fn from_string(fields: &Vec<&str>) -> Self {
+        return Self::new(fields, false);
+    }
+}
+
+impl Metar {
+    pub fn new(fields: &Vec<&str>, is_response: bool) -> Self {
+        Self {
+            is_response,
+            from: fields[0].to_string(),
+            to: fields[1].to_string(),
+            payload: fields[3].to_string(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
