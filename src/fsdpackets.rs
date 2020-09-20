@@ -547,8 +547,8 @@ pub enum ClientQueryPayload {
     DropTrack(String), // Callsign target
     FlightPlan(String), // Callsign of target
     InitiateTrack(String), // Callsign
-    IsValidATCQuery(String), // Callsign target
-    IsValidATCResponse(bool, String), // IsValid, Callsign target
+    IsValidATCQuery(Option<String>), // Callsign target
+    IsValidATCResponse(bool, Option<String>), // IsValid, Callsign target
     NewATIS(String), // ATIS
     NewInfo(String), // Controller info
     RealName(RealNamePayload),
@@ -611,8 +611,8 @@ impl ClientQuery {
             ClientQueryType::FlightPlan => ClientQueryPayload::FlightPlan(payload.swap_remove(0)),
             ClientQueryType::InitiateTrack => ClientQueryPayload::InitiateTrack(payload.swap_remove(0)),
             ClientQueryType::IsValidATC => match is_response {
-                false => if payload.len() > 0 {ClientQueryPayload::IsValidATCQuery(payload.swap_remove(0))} else {ClientQueryPayload::Unknown(payload)},
-                true => ClientQueryPayload::IsValidATCResponse(if payload[0] == "Y" {true} else {false}, payload.swap_remove(0))
+                false => if payload.len() > 0 {ClientQueryPayload::IsValidATCQuery(Some(payload.swap_remove(0)))} else {ClientQueryPayload::IsValidATCQuery(None)},
+                true => ClientQueryPayload::IsValidATCResponse(if payload[0] == "Y" {true} else {false}, if payload.len() > 1 {Some(payload.swap_remove(1))} else {None})
             },
             ClientQueryType::NewATIS => ClientQueryPayload::NewATIS(payload.swap_remove(0)),
             ClientQueryType::NewInfo => ClientQueryPayload::NewInfo(payload.swap_remove(0)),
