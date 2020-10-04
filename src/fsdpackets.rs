@@ -1,7 +1,7 @@
 use num_derive::FromPrimitive;    
 use num_traits::FromPrimitive;
 
-use crate::util::{Frequency, AircraftConfiguration};
+use crate::util::{Frequency};
 use serde_json::Value;
 use std::fmt::{Formatter, Result};
 
@@ -602,31 +602,41 @@ impl ClientQuery {
             }
         }
         // Determine payload
-        let payload = match query_type {
-            ClientQueryType::AcceptHandoff => ClientQueryPayload::AcceptHandoff(payload.swap_remove(0), payload.swap_remove(0)),
-            ClientQueryType::AircraftConfiguration => {
-                ClientQueryPayload::AircraftConfiguration(serde_json::from_str(payload.join(":").as_str()).unwrap())
-            },
-            ClientQueryType::DropTrack => ClientQueryPayload::DropTrack(payload.swap_remove(0)),
-            ClientQueryType::FlightPlan => ClientQueryPayload::FlightPlan(payload.swap_remove(0)),
-            ClientQueryType::InitiateTrack => ClientQueryPayload::InitiateTrack(payload.swap_remove(0)),
-            ClientQueryType::IsValidATC => match is_response {
-                false => if payload.len() > 0 {ClientQueryPayload::IsValidATCQuery(Some(payload.swap_remove(0)))} else {ClientQueryPayload::IsValidATCQuery(None)},
-                true => ClientQueryPayload::IsValidATCResponse(if payload[0] == "Y" {true} else {false}, if payload.len() > 1 {Some(payload.swap_remove(1))} else {None})
-            },
-            ClientQueryType::NewATIS => ClientQueryPayload::NewATIS(payload.swap_remove(0)),
-            ClientQueryType::NewInfo => ClientQueryPayload::NewInfo(payload.swap_remove(0)),
-            ClientQueryType::RealName => match is_response {
-                false => ClientQueryPayload::Unknown(payload),
-                true => ClientQueryPayload::RealName(RealNamePayload::from_payload(&payload))
+        let payload = if payload.len() >= 2 {
+
+            match query_type {
+                ClientQueryType::AircraftConfiguration => ClientQueryPayload::AircraftConfiguration(serde_json::from_str(payload.join(":").as_str()).unwrap()),
+                ClientQueryType::SetBeaconCode => ClientQueryPayload::SetBeaconCode(payload.remove(0), payload.remove(0)),
+                ClientQueryType::SetFinalAltitude => ClientQueryPayload::SetFinalAltitude(payload.remove(0), payload.remove(0)),
+                ClientQueryType::SetScratchpad => ClientQueryPayload::SetScratchpad(payload.remove(0), payload.remove(0)),
+                ClientQueryType::SetTempAltitude => ClientQueryPayload::SetTempAltitude(payload.remove(0), payload.remove(0)),
+                ClientQueryType::SetVoiceType => ClientQueryPayload::SetVoiceType(payload.remove(0), payload.remove(0)),
+                ClientQueryType::AcceptHandoff => ClientQueryPayload::AcceptHandoff(payload.remove(0), payload.remove(0)),
+                _ => ClientQueryPayload::Unknown(payload)
             }
-            ClientQueryType::SetBeaconCode => ClientQueryPayload::SetBeaconCode(payload.swap_remove(0), payload.swap_remove(0)),
-            ClientQueryType::SetFinalAltitude => ClientQueryPayload::SetFinalAltitude(payload.swap_remove(0), payload.swap_remove(0)),
-            ClientQueryType::SetScratchpad => ClientQueryPayload::SetScratchpad(payload.swap_remove(0), payload.swap_remove(0)),
-            ClientQueryType::SetTempAltitude => ClientQueryPayload::SetTempAltitude(payload.swap_remove(0), payload.swap_remove(0)),
-            ClientQueryType::SetVoiceType => ClientQueryPayload::SetVoiceType(payload.swap_remove(0), payload.swap_remove(0)),
-            ClientQueryType::WhoHas => ClientQueryPayload::WhoHas(payload.swap_remove(0)),
-            _ => ClientQueryPayload::Unknown(payload)
+            
+        } else if payload.len() == 1 {
+
+            match query_type {
+                ClientQueryType::DropTrack => ClientQueryPayload::DropTrack(payload.remove(0)),
+                ClientQueryType::FlightPlan => ClientQueryPayload::FlightPlan(payload.remove(0)),
+                ClientQueryType::InitiateTrack => ClientQueryPayload::InitiateTrack(payload.remove(0)),
+                ClientQueryType::IsValidATC => match is_response {
+                    false => if payload.len() > 0 {ClientQueryPayload::IsValidATCQuery(Some(payload.remove(0)))} else {ClientQueryPayload::IsValidATCQuery(None)},
+                    true => ClientQueryPayload::IsValidATCResponse(if payload[0] == "Y" {true} else {false}, if payload.len() > 1 {Some(payload.remove(0))} else {None})
+                },
+                ClientQueryType::NewATIS => ClientQueryPayload::NewATIS(payload.remove(0)),
+                ClientQueryType::NewInfo => ClientQueryPayload::NewInfo(payload.remove(0)),
+                ClientQueryType::RealName => match is_response {
+                    false => ClientQueryPayload::Unknown(payload),
+                    true => ClientQueryPayload::RealName(RealNamePayload::from_payload(&payload))
+                }
+                ClientQueryType::WhoHas => ClientQueryPayload::WhoHas(payload.remove(0)),
+                _ => ClientQueryPayload::Unknown(payload)
+            }
+
+        } else {
+            ClientQueryPayload::Unknown(payload)
         };
         
         return Self {
