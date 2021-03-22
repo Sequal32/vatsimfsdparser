@@ -1,29 +1,27 @@
-use std::collections::HashMap;
-use serde_json::{self, Value};
 use serde::{Deserialize, Serialize};
+use serde_json::{self, Value};
+use std::collections::HashMap;
 
-#[derive(Debug, PartialEq, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct Frequency {
-    pub text: String
+    pub text: String,
 }
 
 impl Frequency {
     pub fn from_packet_string(data: &str) -> Self {
         return Frequency {
-            text: format!("1{}.{}", &data[0..2], &data[2..])
-        }
+            text: format!("1{}.{}", &data[0..2], &data[2..]),
+        };
     }
 }
 // All structs related to aircraft configuration
-#[derive(Debug, PartialEq, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct AircraftLights {
     strobe_on: bool,
     landing_on: bool,
     beacon_on: bool,
     nav_on: bool,
-    logo_on: bool
+    logo_on: bool,
 }
 
 impl Default for AircraftLights {
@@ -38,17 +36,14 @@ impl Default for AircraftLights {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct AircraftEngine {
-    on: bool
+    on: bool,
 }
 
 impl Default for AircraftEngine {
     fn default() -> Self {
-        Self {
-            on: false,
-        }
+        Self { on: false }
     }
 }
 
@@ -59,7 +54,7 @@ pub struct AircraftConfiguration {
     flaps_pct: u64,
     gear_down: bool,
     spoilers_out: bool,
-    on_ground: bool
+    on_ground: bool,
 }
 
 impl Default for AircraftConfiguration {
@@ -71,12 +66,14 @@ impl Default for AircraftConfiguration {
             gear_down: false,
             spoilers_out: false,
             on_ground: false,
-        }
+        };
     }
 }
 
 impl AircraftConfiguration {
-    pub fn new() -> Self {Self::default()}
+    pub fn new() -> Self {
+        Self::default()
+    }
 
     pub fn update_from_json(&mut self, v: &Value) {
         if let Some(lights) = v.get("lights") {
@@ -97,9 +94,9 @@ impl AircraftConfiguration {
                     if let Some(on) = v.get("on") {
                         (*engine).on = on.as_bool().unwrap();
                     }
-                }
-                else {
-                    self.engines.insert(k.to_string(), serde_json::from_value(v.clone()).unwrap());
+                } else {
+                    self.engines
+                        .insert(k.to_string(), serde_json::from_value(v.clone()).unwrap());
                 }
             }
         } else if let Some(flaps_pct) = v.get("flaps_pct") {
@@ -110,7 +107,7 @@ impl AircraftConfiguration {
             self.spoilers_out = spoilers_out.as_bool().unwrap();
         } else if let Some(on_ground) = v.get("on_ground") {
             self.on_ground = on_ground.as_bool().unwrap();
-        } 
+        }
     }
 }
 
@@ -128,10 +125,32 @@ mod test {
     fn parse_aircraft_configuration() {
         let mut config: AircraftConfiguration = AircraftConfiguration::new();
 
-        let data_string: Value = serde_json::from_str("{\"config\":{\"lights\":{\"beacon_on\":true}, \"gear_down\": true}}").unwrap();
+        let data_string: Value = serde_json::from_str(
+            "{\"config\":{\"lights\":{\"beacon_on\":true}, \"gear_down\": true}}",
+        )
+        .unwrap();
         config.update_from_json(&data_string["config"]);
-        assert_eq!(config, AircraftConfiguration {lights: AircraftLights {beacon_on: true, ..Default::default()}, ..Default::default()});
+        assert_eq!(
+            config,
+            AircraftConfiguration {
+                lights: AircraftLights {
+                    beacon_on: true,
+                    ..Default::default()
+                },
+                ..Default::default()
+            }
+        );
         config.update_from_json(&serde_json::from_str("{\"gear_down\": true}").unwrap());
-        assert_eq!(config, AircraftConfiguration {gear_down: true, lights: AircraftLights {beacon_on: true, ..Default::default()}, ..Default::default()});
+        assert_eq!(
+            config,
+            AircraftConfiguration {
+                gear_down: true,
+                lights: AircraftLights {
+                    beacon_on: true,
+                    ..Default::default()
+                },
+                ..Default::default()
+            }
+        );
     }
 }

@@ -1,13 +1,11 @@
-
-
+use crate::{util::AircraftConfiguration, ATCPosition, NetworkClient, PilotPosition};
 use std::collections::HashMap;
-use crate::{util::AircraftConfiguration, NetworkClient, ATCPosition, PilotPosition};
 
 #[derive(Debug)]
 pub struct Pilot {
     client: Option<NetworkClient>,
     config: Option<AircraftConfiguration>,
-    position: Option<PilotPosition>
+    position: Option<PilotPosition>,
 }
 
 impl Default for Pilot {
@@ -22,30 +20,41 @@ impl Default for Pilot {
 
 #[derive(Debug)]
 pub struct PilotManager {
-    pilots: HashMap<String, Pilot>
+    pilots: HashMap<String, Pilot>,
 }
 
 impl PilotManager {
-    pub fn new() -> Self { 
-        Self { 
-            pilots: HashMap::new()
-        } 
+    pub fn new() -> Self {
+        Self {
+            pilots: HashMap::new(),
+        }
     }
-    
 
     pub fn process_client(&mut self, client: &NetworkClient) {
         if let Some(data) = self.pilots.get_mut(&client.callsign) {
             data.client = Some(client.clone());
         } else {
-            self.pilots.insert(client.callsign.to_string(), Pilot {client: Some(client.clone()), ..Default::default()});
+            self.pilots.insert(
+                client.callsign.to_string(),
+                Pilot {
+                    client: Some(client.clone()),
+                    ..Default::default()
+                },
+            );
         }
     }
-    
+
     pub fn process_position(&mut self, position: &PilotPosition) {
         if let Some(data) = self.pilots.get_mut(&position.callsign) {
             data.position = Some(position.clone());
         } else {
-            self.pilots.insert(position.callsign.to_string(), Pilot {position: Some(position.clone()), ..Default::default()});
+            self.pilots.insert(
+                position.callsign.to_string(),
+                Pilot {
+                    position: Some(position.clone()),
+                    ..Default::default()
+                },
+            );
         }
     }
 
@@ -53,7 +62,13 @@ impl PilotManager {
         if let Some(data) = self.pilots.get_mut(callsign) {
             data.config = Some(aircraft_config.clone());
         } else {
-            self.pilots.insert(callsign.to_string(), Pilot {config: Some(aircraft_config.clone()), ..Default::default()});
+            self.pilots.insert(
+                callsign.to_string(),
+                Pilot {
+                    config: Some(aircraft_config.clone()),
+                    ..Default::default()
+                },
+            );
         }
     }
 
@@ -90,18 +105,18 @@ impl PilotManager {
 #[derive(Debug)]
 pub struct ATC {
     client: Option<NetworkClient>,
-    position: Option<ATCPosition>
+    position: Option<ATCPosition>,
 }
 
 #[derive(Debug)]
 pub struct ATCManager {
-    atc: HashMap<String, ATC>
+    atc: HashMap<String, ATC>,
 }
 
 impl ATCManager {
     pub fn new() -> Self {
         Self {
-            atc: HashMap::new()
+            atc: HashMap::new(),
         }
     }
 
@@ -109,15 +124,27 @@ impl ATCManager {
         if let Some(data) = self.atc.get_mut(&client.callsign) {
             data.client = Some(client.clone());
         } else {
-            self.atc.insert(client.callsign.to_string(), ATC {client: Some(client.clone()), position: None});
+            self.atc.insert(
+                client.callsign.to_string(),
+                ATC {
+                    client: Some(client.clone()),
+                    position: None,
+                },
+            );
         }
     }
-    
+
     pub fn process_position(&mut self, position: &ATCPosition) {
         if let Some(data) = self.atc.get_mut(&position.callsign) {
             data.position = Some(position.clone());
         } else {
-            self.atc.insert(position.callsign.to_string(), ATC {client: None, position: Some(position.clone())});
+            self.atc.insert(
+                position.callsign.to_string(),
+                ATC {
+                    client: None,
+                    position: Some(position.clone()),
+                },
+            );
         }
     }
 
@@ -174,7 +201,7 @@ mod test {
 
         assert_eq!(manager.get_client(&"www".to_string()), None);
     }
-    
+
     #[test]
     fn test_pilot_remove() {
         let mut manager = PilotManager::new();
