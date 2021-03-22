@@ -2,8 +2,7 @@ use crate::fsdpackets::*;
 
 pub struct Parser {}
 
-#[derive(PartialEq)]
-#[derive(Debug)]
+#[derive(PartialEq, Debug)]
 pub enum PacketTypes {
     TextMessage(TextMessage),
     ATCPosition(ATCPosition),
@@ -16,19 +15,25 @@ pub enum PacketTypes {
     FlightPlan(FlightPlan),
     ClientQuery(ClientQuery),
     Metar(Metar),
+    PlaneInfoRequest(PlaneInfoRequest),
+    PlaneInfo(PlaneInfo),
 }
 
-impl Parser {    
+impl Parser {
     const DELIMETER: &'static str = ":";
 
     pub fn parse(data: &str) -> Option<PacketTypes> {
         let data = data.trim().to_string();
 
-        if data.len() == 0 || data.find(":") == None {return None}
+        if data.len() == 0 || data.find(":") == None {
+            return None;
+        }
         // Make sure first few characters are alphanumeric
         let mut chars = data.chars();
         for _ in 0..3 {
-            if !chars.next().unwrap().is_ascii() {return None}
+            if !chars.next().unwrap().is_ascii() {
+                return None;
+            }
         }
 
         let command_prefix = &data[0..1];
@@ -37,76 +42,237 @@ impl Parser {
                 let command = &data[1..3];
                 let fields: &Vec<&str> = &data[3..].split(Parser::DELIMETER).collect();
                 match command {
-                    "AA" => Some(PacketTypes::NetworkClient(NetworkClient::new(fields, NetworkClientType::ATC))),
-                    "DA" => Some(PacketTypes::DeleteClient(DeleteClient::new(fields, NetworkClientType::ATC))),
-                    "AP" => Some(PacketTypes::NetworkClient(NetworkClient::new(fields, NetworkClientType::Pilot))),
-                    "DP" => Some(PacketTypes::DeleteClient(DeleteClient::new(fields, NetworkClientType::Pilot))),
+                    "AA" => Some(PacketTypes::NetworkClient(NetworkClient::new(
+                        fields,
+                        NetworkClientType::ATC,
+                    ))),
+                    "DA" => Some(PacketTypes::DeleteClient(DeleteClient::new(
+                        fields,
+                        NetworkClientType::ATC,
+                    ))),
+                    "AP" => Some(PacketTypes::NetworkClient(NetworkClient::new(
+                        fields,
+                        NetworkClientType::Pilot,
+                    ))),
+                    "DP" => Some(PacketTypes::DeleteClient(DeleteClient::new(
+                        fields,
+                        NetworkClientType::Pilot,
+                    ))),
+
                     "TM" => Some(PacketTypes::TextMessage(TextMessage::from_string(fields))),
-                    "PC" => {
-                        match fields[3] {
-                            "HC" => Some(PacketTypes::TransferControl(TransferControl::new(fields, TransferControlType::Cancelled))),
-                            "ST" => Some(PacketTypes::FlightStrip(FlightStrip::from_string(fields))),
-                            "DP" => Some(PacketTypes::TransferControl(TransferControl::new(fields, TransferControlType::PushToDepartures))),
-                            "PT" => Some(PacketTypes::TransferControl(TransferControl::new(fields, TransferControlType::Pointout))),
-                            "IH" => Some(PacketTypes::TransferControl(TransferControl::new(fields, TransferControlType::IHaveControl))),
-                            "SC" => Some(PacketTypes::SharedState(SharedState::new(fields, SharedStateType::Scratchpad))),
-                            "BC" => Some(PacketTypes::SharedState(SharedState::new(fields, SharedStateType::BeaconCode))),
-                            "VT" => Some(PacketTypes::SharedState(SharedState::new(fields, SharedStateType::VoiceType))),
-                            "TA" => Some(PacketTypes::SharedState(SharedState::new(fields, SharedStateType::TempAlt))),
-                            _ => None
-                        }
+                    "SB" => match fields[2] {
+                        "PIR" => Some(PacketTypes::PlaneInfoRequest(
+                            PlaneInfoRequest::from_string(fields),
+                        )),
+                        "PI" => Some(PacketTypes::PlaneInfo(PlaneInfo::from_string(fields))),
+                        _ => None,
                     },
-                    "HO" => Some(PacketTypes::TransferControl(TransferControl::new(fields, TransferControlType::Received))),
-                    "HA" => Some(PacketTypes::TransferControl(TransferControl::new(fields, TransferControlType::Accepted))),
+                    "PC" => match fields[3] {
+                        "HC" => Some(PacketTypes::TransferControl(TransferControl::new(
+                            fields,
+                            TransferControlType::Cancelled,
+                        ))),
+                        "ST" => Some(PacketTypes::FlightStrip(FlightStrip::from_string(fields))),
+                        "DP" => Some(PacketTypes::TransferControl(TransferControl::new(
+                            fields,
+                            TransferControlType::PushToDepartures,
+                        ))),
+                        "PT" => Some(PacketTypes::TransferControl(TransferControl::new(
+                            fields,
+                            TransferControlType::Pointout,
+                        ))),
+                        "IH" => Some(PacketTypes::TransferControl(TransferControl::new(
+                            fields,
+                            TransferControlType::IHaveControl,
+                        ))),
+                        "SC" => Some(PacketTypes::SharedState(SharedState::new(
+                            fields,
+                            SharedStateType::Scratchpad,
+                        ))),
+                        "BC" => Some(PacketTypes::SharedState(SharedState::new(
+                            fields,
+                            SharedStateType::BeaconCode,
+                        ))),
+                        "VT" => Some(PacketTypes::SharedState(SharedState::new(
+                            fields,
+                            SharedStateType::VoiceType,
+                        ))),
+                        "TA" => Some(PacketTypes::SharedState(SharedState::new(
+                            fields,
+                            SharedStateType::TempAlt,
+                        ))),
+                        _ => None,
+                    },
+                    "HO" => Some(PacketTypes::TransferControl(TransferControl::new(
+                        fields,
+                        TransferControlType::Received,
+                    ))),
+                    "HA" => Some(PacketTypes::TransferControl(TransferControl::new(
+                        fields,
+                        TransferControlType::Accepted,
+                    ))),
                     "FP" => Some(PacketTypes::FlightPlan(FlightPlan::from_string(fields))),
-                    "AM" => Some(PacketTypes::FlightPlan(FlightPlan::new(fields, Some(fields[17])))),
+                    "AM" => Some(PacketTypes::FlightPlan(FlightPlan::new(
+                        fields,
+                        Some(fields[17]),
+                    ))),
                     "AR" => Some(PacketTypes::Metar(Metar::new(fields, true))),
                     "AX" => Some(PacketTypes::Metar(Metar::new(fields, false))),
                     "CQ" | "CR" => {
                         let is_response = command == "CR";
                         match fields[2] {
-                            "ATC" => Some(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::IsValidATC, is_response))),
-                            "CAPS" => Some(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::Capabilities, is_response))),
-                            "C?" => Some(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::COM1Freq, is_response))),
-                            "RN" => Some(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::RealName, is_response))),
-                            "SV" => Some(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::Server, is_response))),
-                            "ATIS" => Some(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::ATIS, is_response))),
-                            "IP" => Some(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::PublicIP, is_response))),
-                            "INF" => Some(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::INF, is_response))),
-                            "FP" => Some(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::FlightPlan, is_response))),
-                            "IPC" => Some(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::IPC, is_response))),
-                            "BY" => Some(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::RequestRelief, is_response))),
-                            "HI" => Some(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::CancelRequestRelief, is_response))),
-                            "HLP" => Some(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::RequestHelp, is_response))),
-                            "NOHLP" => Some(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::CancelRequestHelp, is_response))),
-                            "WH" => Some(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::WhoHas, is_response))),
-                            "IT" => Some(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::InitiateTrack, is_response))),
-                            "HT" => Some(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::AcceptHandoff, is_response))),
-                            "DR" => Some(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::DropTrack, is_response))),
-                            "FA" => Some(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::SetFinalAltitude, is_response))),
-                            "TA" => Some(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::SetTempAltitude, is_response))),
-                            "BC" => Some(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::SetBeaconCode, is_response))),
-                            "SC" => Some(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::SetScratchpad, is_response))),
-                            "VT" => Some(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::SetVoiceType, is_response))),
-                            "ACC" => Some(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::AircraftConfiguration, is_response))),
-                            "NEWINFO" => Some(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::NewInfo, is_response))),
-                            "NEWATIS" => Some(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::NewATIS, is_response))),
-                            _ => Some(PacketTypes::ClientQuery(ClientQuery::new(fields, ClientQueryType::Unknown, is_response)))
+                            "ATC" => Some(PacketTypes::ClientQuery(ClientQuery::new(
+                                fields,
+                                ClientQueryType::IsValidATC,
+                                is_response,
+                            ))),
+                            "CAPS" => Some(PacketTypes::ClientQuery(ClientQuery::new(
+                                fields,
+                                ClientQueryType::Capabilities,
+                                is_response,
+                            ))),
+                            "C?" => Some(PacketTypes::ClientQuery(ClientQuery::new(
+                                fields,
+                                ClientQueryType::COM1Freq,
+                                is_response,
+                            ))),
+                            "RN" => Some(PacketTypes::ClientQuery(ClientQuery::new(
+                                fields,
+                                ClientQueryType::RealName,
+                                is_response,
+                            ))),
+                            "SV" => Some(PacketTypes::ClientQuery(ClientQuery::new(
+                                fields,
+                                ClientQueryType::Server,
+                                is_response,
+                            ))),
+                            "ATIS" => Some(PacketTypes::ClientQuery(ClientQuery::new(
+                                fields,
+                                ClientQueryType::ATIS,
+                                is_response,
+                            ))),
+                            "IP" => Some(PacketTypes::ClientQuery(ClientQuery::new(
+                                fields,
+                                ClientQueryType::PublicIP,
+                                is_response,
+                            ))),
+                            "INF" => Some(PacketTypes::ClientQuery(ClientQuery::new(
+                                fields,
+                                ClientQueryType::INF,
+                                is_response,
+                            ))),
+                            "FP" => Some(PacketTypes::ClientQuery(ClientQuery::new(
+                                fields,
+                                ClientQueryType::FlightPlan,
+                                is_response,
+                            ))),
+                            "IPC" => Some(PacketTypes::ClientQuery(ClientQuery::new(
+                                fields,
+                                ClientQueryType::IPC,
+                                is_response,
+                            ))),
+                            "BY" => Some(PacketTypes::ClientQuery(ClientQuery::new(
+                                fields,
+                                ClientQueryType::RequestRelief,
+                                is_response,
+                            ))),
+                            "HI" => Some(PacketTypes::ClientQuery(ClientQuery::new(
+                                fields,
+                                ClientQueryType::CancelRequestRelief,
+                                is_response,
+                            ))),
+                            "HLP" => Some(PacketTypes::ClientQuery(ClientQuery::new(
+                                fields,
+                                ClientQueryType::RequestHelp,
+                                is_response,
+                            ))),
+                            "NOHLP" => Some(PacketTypes::ClientQuery(ClientQuery::new(
+                                fields,
+                                ClientQueryType::CancelRequestHelp,
+                                is_response,
+                            ))),
+                            "WH" => Some(PacketTypes::ClientQuery(ClientQuery::new(
+                                fields,
+                                ClientQueryType::WhoHas,
+                                is_response,
+                            ))),
+                            "IT" => Some(PacketTypes::ClientQuery(ClientQuery::new(
+                                fields,
+                                ClientQueryType::InitiateTrack,
+                                is_response,
+                            ))),
+                            "HT" => Some(PacketTypes::ClientQuery(ClientQuery::new(
+                                fields,
+                                ClientQueryType::AcceptHandoff,
+                                is_response,
+                            ))),
+                            "DR" => Some(PacketTypes::ClientQuery(ClientQuery::new(
+                                fields,
+                                ClientQueryType::DropTrack,
+                                is_response,
+                            ))),
+                            "FA" => Some(PacketTypes::ClientQuery(ClientQuery::new(
+                                fields,
+                                ClientQueryType::SetFinalAltitude,
+                                is_response,
+                            ))),
+                            "TA" => Some(PacketTypes::ClientQuery(ClientQuery::new(
+                                fields,
+                                ClientQueryType::SetTempAltitude,
+                                is_response,
+                            ))),
+                            "BC" => Some(PacketTypes::ClientQuery(ClientQuery::new(
+                                fields,
+                                ClientQueryType::SetBeaconCode,
+                                is_response,
+                            ))),
+                            "SC" => Some(PacketTypes::ClientQuery(ClientQuery::new(
+                                fields,
+                                ClientQueryType::SetScratchpad,
+                                is_response,
+                            ))),
+                            "VT" => Some(PacketTypes::ClientQuery(ClientQuery::new(
+                                fields,
+                                ClientQueryType::SetVoiceType,
+                                is_response,
+                            ))),
+                            "ACC" => Some(PacketTypes::ClientQuery(ClientQuery::new(
+                                fields,
+                                ClientQueryType::AircraftConfiguration,
+                                is_response,
+                            ))),
+                            "NEWINFO" => Some(PacketTypes::ClientQuery(ClientQuery::new(
+                                fields,
+                                ClientQueryType::NewInfo,
+                                is_response,
+                            ))),
+                            "NEWATIS" => Some(PacketTypes::ClientQuery(ClientQuery::new(
+                                fields,
+                                ClientQueryType::NewATIS,
+                                is_response,
+                            ))),
+                            _ => Some(PacketTypes::ClientQuery(ClientQuery::new(
+                                fields,
+                                ClientQueryType::Unknown,
+                                is_response,
+                            ))),
                         }
                     }
 
-                    _ => None
+                    _ => None,
                 }
-            },
+            }
             "%" => {
                 let fields: &Vec<&str> = &data[1..].split(Parser::DELIMETER).collect();
                 Some(PacketTypes::ATCPosition(ATCPosition::from_string(fields)))
-            },
+            }
             "@" => {
                 let fields: &Vec<&str> = &data[1..].split(Parser::DELIMETER).collect();
-                Some(PacketTypes::PilotPosition(PilotPosition::from_string(fields)))
-            },
-            _ => None
+                Some(PacketTypes::PilotPosition(PilotPosition::from_string(
+                    fields,
+                )))
+            }
+            _ => None,
         }
     }
 }
@@ -120,13 +286,11 @@ mod test {
         ($string: expr, $to_match:path) => {
             let tm = Parser::parse($string);
             match tm.unwrap() {
-                PacketTypes::TextMessage(message) => {
-                    match message.receiver {
-                        $to_match => (),
-                        _ => panic!("Not the right receiver type!")
-                    }
-                }
-                _ => panic!("Not the right packet type!")
+                PacketTypes::TextMessage(message) => match message.receiver {
+                    $to_match => (),
+                    _ => panic!("Not the right receiver type!"),
+                },
+                _ => panic!("Not the right packet type!"),
             }
         };
     }
@@ -135,16 +299,21 @@ mod test {
         let tm = Parser::parse("#TMNY_CAM_APP:@28120:EK188,turnrightheading310");
         match tm.unwrap() {
             PacketTypes::TextMessage(message) => {
-                assert_eq!(message.sender, "NY_CAM_APP".to_string(), "Sender: {}", message.sender);
+                assert_eq!(
+                    message.sender,
+                    "NY_CAM_APP".to_string(),
+                    "Sender: {}",
+                    message.sender
+                );
                 assert_eq!(message.text, "EK188,turnrightheading310");
                 match message.receiver {
                     TextMessageReceiver::Radio(freq) => {
                         assert_eq!(freq.text, "128.120")
-                    },
-                    _ => panic!("Not the right receiver type!")
+                    }
+                    _ => panic!("Not the right receiver type!"),
                 }
             }
-            _ => panic!("Not the right packet type!")
+            _ => panic!("Not the right packet type!"),
         }
     }
 
@@ -179,8 +348,8 @@ mod test {
                 assert_eq!(pos.callsign, "BOS_APP");
                 assert_eq!(pos.rating, NetworkRating::C1);
                 assert_eq!(pos.vis_range, 150);
-            },
-            _ => panic!("Not the right packet type!")
+            }
+            _ => panic!("Not the right packet type!"),
         }
     }
 
@@ -200,8 +369,8 @@ mod test {
                 assert_eq!(pos.pbh.hdg.round(), 211.0);
                 assert_eq!(pos.true_alt, 174);
                 assert_eq!(pos.pressure_alt, 235);
-            },
-            _ => panic!("Not the right packet type!")
+            }
+            _ => panic!("Not the right packet type!"),
         }
     }
 
@@ -238,8 +407,8 @@ mod test {
                 assert_eq!(metar.to, "SERVER");
                 assert_eq!(metar.is_response, false);
                 assert_eq!(metar.payload, "KBOS");
-            },
-            _ => panic!("Not the right packet type!")
+            }
+            _ => panic!("Not the right packet type!"),
         }
 
         match Parser::parse("$ARSERVER:BOS_GND:METAR:KBOS 180154Z 02011KT 10SM SCT060 OVC250 18/13 A3000 RMK AO2 SLP159 T01780128").unwrap() {
@@ -262,8 +431,8 @@ mod test {
                 assert_eq!(fs.from, "BOS_GND");
                 assert_eq!(fs.format_id, "1");
                 assert_eq!(fs.annotations[0], "A");
-            },
-            _ => panic!("Not the right packet type!")
+            }
+            _ => panic!("Not the right packet type!"),
         }
     }
 
@@ -278,11 +447,39 @@ mod test {
                     ClientQueryPayload::SetBeaconCode(callsign, code) => {
                         assert_eq!(callsign, "DAL1");
                         assert_eq!(code, "1001");
-                    },
-                    _ => ()
+                    }
+                    _ => (),
                 }
             }
-            _ => panic!("Not the right packet type!")
+            _ => panic!("Not the right packet type!"),
+        }
+    }
+
+    #[test]
+    fn test_plane_info() {
+        match Parser::parse("#SBDW033:TOWER:PI:GEN:EQUIPMENT=CONC:AIRLINE=BA:LIVERY=swift_a10743")
+            .unwrap()
+        {
+            PacketTypes::PlaneInfo(p) => {
+                assert_eq!(p.from, "DW033");
+                assert_eq!(p.to, "TOWER");
+
+                if let PlaneInfoResponse::Regular {
+                    equipment,
+                    airline,
+                    livery,
+                    csl,
+                } = p.payload
+                {
+                    assert_eq!(equipment.unwrap(), "CONC");
+                    assert_eq!(airline.unwrap(), "BA");
+                    assert_eq!(livery.unwrap(), "swift_a10743");
+                    assert!(csl.is_none());
+                } else {
+                    panic!("Not the right response type!");
+                }
+            }
+            _ => panic!("Not the right packet type!"),
         }
     }
 }

@@ -182,7 +182,6 @@ impl Sniffer {
                     let text = &packet.get_payload_as_ascii();
                     for payload in text.split("\n") {
                         if let Some(packet) = Parser::parse(payload) {
-
                             if from_server {
                                 self.packet_queue.push_back(PacketSource::Server(packet));
                             }

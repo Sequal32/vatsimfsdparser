@@ -1,7 +1,7 @@
-use num_derive::FromPrimitive;    
+use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 
-use crate::util::{Frequency};
+use crate::util::Frequency;
 use serde_json::Value;
 use std::fmt::{Formatter, Result};
 
@@ -17,7 +17,6 @@ macro_rules! force_parse {
     };
 }
 
-
 pub trait Packet {
     fn from_string(fields: &Vec<&str>) -> Self;
 }
@@ -30,8 +29,7 @@ pub enum TextMessageReceiver {
     PrivateMessage,
     Radio(Frequency),
 }
-#[derive(FromPrimitive)]
-#[derive(PartialEq, Debug, Clone)]
+#[derive(FromPrimitive, PartialEq, Debug, Clone)]
 pub enum NetworkFacility {
     OBS,
     FSS,
@@ -40,21 +38,22 @@ pub enum NetworkFacility {
     TWR,
     APP,
     CTR,
-    Undefined
+    Undefined,
 }
 
 impl NetworkFacility {
     fn from_string(data: &str) -> Self {
-        if data == "" {return NetworkFacility::Undefined}
+        if data == "" {
+            return NetworkFacility::Undefined;
+        }
         match to_enum!(data) {
             Some(ok) => ok,
-            None => NetworkFacility::Undefined
+            None => NetworkFacility::Undefined,
         }
     }
 }
 
-#[derive(FromPrimitive)]
-#[derive(PartialEq, Debug, Clone)]
+#[derive(FromPrimitive, PartialEq, Debug, Clone)]
 pub enum NetworkRating {
     Undefined,
     OBS,
@@ -68,7 +67,7 @@ pub enum NetworkRating {
     I2,
     I3,
     SUP,
-    ADM
+    ADM,
 }
 
 impl std::fmt::Display for NetworkRating {
@@ -93,16 +92,25 @@ impl std::fmt::Display for NetworkRating {
 
 impl NetworkRating {
     fn from_string(data: &str) -> Self {
-        if data == "" {return NetworkRating::Undefined}
+        if data == "" {
+            return NetworkRating::Undefined;
+        }
         match to_enum!(data) {
             Some(ok) => ok,
-            None => NetworkRating::Undefined
+            None => NetworkRating::Undefined,
         }
     }
 }
 
-#[derive(FromPrimitive)]
-#[derive(PartialEq, Debug, Clone)]
+#[derive(FromPrimitive, Debug, PartialEq, Clone)]
+pub enum EngineType {
+    Piston = 0,
+    Jet = 1,
+    None = 2,
+    Helo = 3,
+}
+
+#[derive(FromPrimitive, PartialEq, Debug, Clone)]
 pub enum SimulatorType {
     Unknown,
     MSFS95,
@@ -110,16 +118,15 @@ pub enum SimulatorType {
     MSCFS,
     AS2,
     PS1,
-    XPlane
+    XPlane,
 }
 
-#[derive(FromPrimitive)]
-#[derive(PartialEq, Debug, Clone)]
+#[derive(FromPrimitive, PartialEq, Debug, Clone)]
 pub enum ProtocolRevision {
     Unknown = 0,
     Classic = 9,
     VatsimNoAuth = 10,
-    VatsimAuth = 100
+    VatsimAuth = 100,
 }
 
 // ENUMS //
@@ -127,7 +134,7 @@ pub enum ProtocolRevision {
 pub enum NetworkClientType {
     ATC,
     Pilot,
-    Undefined
+    Undefined,
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -136,17 +143,19 @@ pub enum FlightRules {
     VFR,
     DVFR,
     SVFR,
-    Undefined
+    Undefined,
 }
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum SquawkType {
-    Standby, Charlie, Ident, Undefined
+    Standby,
+    Charlie,
+    Ident,
+    Undefined,
 }
 
 #[derive(PartialEq, Debug, Clone)]
-pub enum ClientQueryType
-{
+pub enum ClientQueryType {
     Unknown,
     IsValidATC,
     Capabilities,
@@ -173,14 +182,14 @@ pub enum ClientQueryType
     SetVoiceType,
     AircraftConfiguration,
     NewInfo,
-    NewATIS
+    NewATIS,
 }
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct TextMessage {
     pub sender: String,
     pub receiver: TextMessageReceiver,
-    pub text: String
+    pub text: String,
 }
 
 impl Packet for TextMessage {
@@ -193,16 +202,18 @@ impl Packet for TextMessage {
             "*S" => TextMessageReceiver::Wallop,
             "@49999" => TextMessageReceiver::ATC,
             _ => match &receiver_str[0..1] {
-                "@" => TextMessageReceiver::Radio(Frequency::from_packet_string(&receiver_str[1..])),
-                _ => TextMessageReceiver::PrivateMessage
-            }
+                "@" => {
+                    TextMessageReceiver::Radio(Frequency::from_packet_string(&receiver_str[1..]))
+                }
+                _ => TextMessageReceiver::PrivateMessage,
+            },
         };
 
         return TextMessage {
             text: message.to_string(),
             receiver: receiver,
-            sender: fields[0].to_string()
-        }
+            sender: fields[0].to_string(),
+        };
     }
 }
 
@@ -214,7 +225,7 @@ pub struct NetworkClient {
     pub cid: String,
     pub password: String,
     pub rating: NetworkRating,
-    pub protocol_ver: u8
+    pub protocol_ver: u8,
 }
 
 impl Packet for NetworkClient {
@@ -233,7 +244,7 @@ impl NetworkClient {
                 password: fields[4].to_string(),
                 rating: NetworkRating::from_string(fields[5]),
                 protocol_ver: 0,
-                client_type: client
+                client_type: client,
             },
             _ => Self {
                 callsign: fields[0].to_string(),
@@ -242,7 +253,7 @@ impl NetworkClient {
                 rating: NetworkRating::from_string(fields[4]),
                 protocol_ver: force_parse!(u8, fields[5]),
                 real_name: fields[7].to_string(),
-                client_type: client
+                client_type: client,
             },
         };
     }
@@ -254,7 +265,7 @@ pub enum SharedStateType {
     BeaconCode,
     VoiceType,
     TempAlt,
-    Unknown
+    Unknown,
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -263,8 +274,8 @@ pub struct SharedState {
     pub to: String,
     pub target: String,
     pub value: String,
-    
-    pub shared_type: SharedStateType
+
+    pub shared_type: SharedStateType,
 }
 
 impl Packet for SharedState {
@@ -280,8 +291,8 @@ impl SharedState {
             to: fields[1].to_string(),
             target: fields[4].to_string(),
             value: fields[5].to_string(),
-            shared_type: shared_type
-        }
+            shared_type: shared_type,
+        };
     }
 }
 
@@ -291,7 +302,7 @@ pub struct FlightStrip {
     pub to: String,
     pub target: String,
     pub format_id: String,
-    pub annotations: Vec<String>
+    pub annotations: Vec<String>,
 }
 
 impl Packet for FlightStrip {
@@ -308,9 +319,13 @@ impl Packet for FlightStrip {
             from: fields[0].to_string(),
             to: fields[1].to_string(),
             target: fields[4].to_string(),
-            format_id: if fields.len() > 5 {fields[5].to_string()} else {"".to_string()},
-            annotations: annotations
-        }
+            format_id: if fields.len() > 5 {
+                fields[5].to_string()
+            } else {
+                "".to_string()
+            },
+            annotations: annotations,
+        };
     }
 }
 
@@ -318,7 +333,7 @@ impl Packet for FlightStrip {
 pub struct DeleteClient {
     pub client_type: NetworkClientType,
     pub callsign: String,
-    pub cid: String
+    pub cid: String,
 }
 
 impl Packet for DeleteClient {
@@ -332,8 +347,8 @@ impl DeleteClient {
         return DeleteClient {
             callsign: fields[0].to_string(),
             cid: fields[1].to_string(),
-            client_type: client
-        }
+            client_type: client,
+        };
     }
 }
 
@@ -356,7 +371,7 @@ pub struct FlightPlan {
     pub remarks: String,
     pub route: String,
 
-    pub amended_by: Option<String>
+    pub amended_by: Option<String>,
 }
 
 impl Packet for FlightPlan {
@@ -367,17 +382,17 @@ impl Packet for FlightPlan {
 
 impl FlightPlan {
     pub fn new(fields: &Vec<&str>, amended: Option<&str>) -> Self {
-        let rule  = match fields[2] {
+        let rule = match fields[2] {
             "I" | "IFR" => FlightRules::IFR,
             "V" | "VFR" => FlightRules::VFR,
             "D" | "DVFR" => FlightRules::DVFR,
             "S" | "SVFR" => FlightRules::SVFR,
-            _ => FlightRules::Undefined
+            _ => FlightRules::Undefined,
         };
 
         let amended_by = match amended {
             Some(callsign) => Some(callsign.to_string()),
-            None => None
+            None => None,
         };
 
         return Self {
@@ -397,14 +412,19 @@ impl FlightPlan {
             alternate: fields[14].to_string(),
             remarks: fields[15].to_string(),
             route: fields[16].to_string(),
-            amended_by: amended_by
-        }
+            amended_by: amended_by,
+        };
     }
 }
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum TransferControlType {
-    Received, Accepted, Cancelled, IHaveControl, Pointout, PushToDepartures
+    Received,
+    Accepted,
+    Cancelled,
+    IHaveControl,
+    Pointout,
+    PushToDepartures,
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -413,7 +433,7 @@ pub struct TransferControl {
     pub to: String,
     pub target: String,
 
-    pub transfer_type: TransferControlType
+    pub transfer_type: TransferControlType,
 }
 
 impl Packet for TransferControl {
@@ -426,7 +446,7 @@ impl TransferControl {
     pub fn new(fields: &Vec<&str>, transfer_type: TransferControlType) -> Self {
         let target = match transfer_type {
             TransferControlType::Accepted | TransferControlType::Received => fields[2],
-            _ => fields[4]
+            _ => fields[4],
         };
 
         return Self {
@@ -434,8 +454,8 @@ impl TransferControl {
             to: fields[1].to_string(),
             target: target.to_string(),
 
-            transfer_type: transfer_type
-        }
+            transfer_type: transfer_type,
+        };
     }
 }
 
@@ -447,7 +467,7 @@ pub struct ATCPosition {
     pub rating: NetworkRating,
     pub lat: f32,
     pub lon: f32,
-    pub callsign: String
+    pub callsign: String,
 }
 
 impl Packet for ATCPosition {
@@ -459,8 +479,8 @@ impl Packet for ATCPosition {
             vis_range: force_parse!(u16, fields[3]),
             rating: NetworkRating::from_string(fields[4]),
             lat: fields[5].parse::<f32>().unwrap(),
-            lon: fields[6].parse::<f32>().unwrap()
-        }
+            lon: fields[6].parse::<f32>().unwrap(),
+        };
     }
 }
 
@@ -468,7 +488,7 @@ impl Packet for ATCPosition {
 pub struct FlightSurfaces {
     pub pitch: f64,
     pub bank: f64,
-    pub hdg: f64
+    pub hdg: f64,
 }
 
 impl FlightSurfaces {
@@ -495,8 +515,8 @@ impl FlightSurfaces {
         return FlightSurfaces {
             hdg: hdg_dbl,
             bank: bank_dbl,
-            pitch: pitch_dbl
-        }
+            pitch: pitch_dbl,
+        };
     }
 }
 
@@ -511,7 +531,7 @@ pub struct PilotPosition {
     pub true_alt: i32,
     pub pressure_alt: i32,
     pub ground_speed: i32,
-    pub pbh: FlightSurfaces
+    pub pbh: FlightSurfaces,
 }
 
 impl Packet for PilotPosition {
@@ -520,11 +540,11 @@ impl Packet for PilotPosition {
             "S" => SquawkType::Standby,
             "N" => SquawkType::Charlie,
             "Y" => SquawkType::Ident,
-            _ => SquawkType::Undefined
+            _ => SquawkType::Undefined,
         };
 
         let alt = force_parse!(i32, fields[6]);
-        
+
         return Self {
             callsign: fields[1].to_string(),
             squawk_code: force_parse!(u16, fields[2]),
@@ -535,8 +555,8 @@ impl Packet for PilotPosition {
             true_alt: alt,
             pressure_alt: alt + force_parse!(i32, fields[9]),
             ground_speed: force_parse!(i32, fields[7]),
-            pbh: FlightSurfaces::from_encoded(force_parse!(i64, fields[8]))
-        }
+            pbh: FlightSurfaces::from_encoded(force_parse!(i64, fields[8])),
+        };
     }
 }
 
@@ -544,19 +564,19 @@ impl Packet for PilotPosition {
 pub enum ClientQueryPayload {
     AcceptHandoff(String, String), // Aircraft Callsign, From ATC
     AircraftConfiguration(Value),
-    DropTrack(String), // Callsign target
-    FlightPlan(String), // Callsign of target
-    InitiateTrack(String), // Callsign
-    IsValidATCQuery(Option<String>), // Callsign target
+    DropTrack(String),                        // Callsign target
+    FlightPlan(String),                       // Callsign of target
+    InitiateTrack(String),                    // Callsign
+    IsValidATCQuery(Option<String>),          // Callsign target
     IsValidATCResponse(bool, Option<String>), // IsValid, Callsign target
-    NewATIS(String), // ATIS
-    NewInfo(String), // Controller info
+    NewATIS(String),                          // ATIS
+    NewInfo(String),                          // Controller info
     RealName(RealNamePayload),
     SetFinalAltitude(String, String), // Callsign, final altitude
-    SetBeaconCode(String, String), // Callsign, Data
-    SetScratchpad(String, String), // Callsign, Data
-    SetTempAltitude(String, String), // Callsign, Altitude
-    SetVoiceType(String, String), // Callsign target, data
+    SetBeaconCode(String, String),    // Callsign, Data
+    SetScratchpad(String, String),    // Callsign, Data
+    SetTempAltitude(String, String),  // Callsign, Altitude
+    SetVoiceType(String, String),     // Callsign target, data
     Unknown(Vec<String>),
     WhoHas(String),
 }
@@ -564,8 +584,8 @@ pub enum ClientQueryPayload {
 #[derive(Debug, PartialEq, Clone)]
 pub struct RealNamePayload {
     pub real_name: String,
-    pub facility_name: String, 
-    pub rating: NetworkRating
+    pub facility_name: String,
+    pub rating: NetworkRating,
 }
 
 impl RealNamePayload {
@@ -584,12 +604,12 @@ pub struct ClientQuery {
     pub from: String,
     pub to: String,
     pub query_type: ClientQueryType,
-    pub payload: ClientQueryPayload
+    pub payload: ClientQueryPayload,
 }
 
 impl Packet for ClientQuery {
     fn from_string(fields: &Vec<&str>) -> Self {
-        return Self::new(fields, ClientQueryType::Unknown, false)
+        return Self::new(fields, ClientQueryType::Unknown, false);
     }
 }
 
@@ -603,48 +623,157 @@ impl ClientQuery {
         }
         // Determine payload
         let payload = if payload.len() >= 2 {
-
             match query_type {
-                ClientQueryType::AircraftConfiguration => ClientQueryPayload::AircraftConfiguration(serde_json::from_str(payload.join(":").as_str()).unwrap()),
-                ClientQueryType::SetBeaconCode => ClientQueryPayload::SetBeaconCode(payload.remove(0), payload.remove(0)),
-                ClientQueryType::SetFinalAltitude => ClientQueryPayload::SetFinalAltitude(payload.remove(0), payload.remove(0)),
-                ClientQueryType::SetScratchpad => ClientQueryPayload::SetScratchpad(payload.remove(0), payload.remove(0)),
-                ClientQueryType::SetTempAltitude => ClientQueryPayload::SetTempAltitude(payload.remove(0), payload.remove(0)),
-                ClientQueryType::SetVoiceType => ClientQueryPayload::SetVoiceType(payload.remove(0), payload.remove(0)),
-                ClientQueryType::AcceptHandoff => ClientQueryPayload::AcceptHandoff(payload.remove(0), payload.remove(0)),
-                _ => ClientQueryPayload::Unknown(payload)
+                ClientQueryType::AircraftConfiguration => {
+                    ClientQueryPayload::AircraftConfiguration(
+                        serde_json::from_str(payload.join(":").as_str()).unwrap(),
+                    )
+                }
+                ClientQueryType::SetBeaconCode => {
+                    ClientQueryPayload::SetBeaconCode(payload.remove(0), payload.remove(0))
+                }
+                ClientQueryType::SetFinalAltitude => {
+                    ClientQueryPayload::SetFinalAltitude(payload.remove(0), payload.remove(0))
+                }
+                ClientQueryType::SetScratchpad => {
+                    ClientQueryPayload::SetScratchpad(payload.remove(0), payload.remove(0))
+                }
+                ClientQueryType::SetTempAltitude => {
+                    ClientQueryPayload::SetTempAltitude(payload.remove(0), payload.remove(0))
+                }
+                ClientQueryType::SetVoiceType => {
+                    ClientQueryPayload::SetVoiceType(payload.remove(0), payload.remove(0))
+                }
+                ClientQueryType::AcceptHandoff => {
+                    ClientQueryPayload::AcceptHandoff(payload.remove(0), payload.remove(0))
+                }
+                _ => ClientQueryPayload::Unknown(payload),
             }
-            
         } else if payload.len() == 1 {
-
             match query_type {
                 ClientQueryType::DropTrack => ClientQueryPayload::DropTrack(payload.remove(0)),
                 ClientQueryType::FlightPlan => ClientQueryPayload::FlightPlan(payload.remove(0)),
-                ClientQueryType::InitiateTrack => ClientQueryPayload::InitiateTrack(payload.remove(0)),
+                ClientQueryType::InitiateTrack => {
+                    ClientQueryPayload::InitiateTrack(payload.remove(0))
+                }
                 ClientQueryType::IsValidATC => match is_response {
-                    false => if payload.len() > 0 {ClientQueryPayload::IsValidATCQuery(Some(payload.remove(0)))} else {ClientQueryPayload::IsValidATCQuery(None)},
-                    true => ClientQueryPayload::IsValidATCResponse(if payload[0] == "Y" {true} else {false}, if payload.len() > 1 {Some(payload.remove(0))} else {None})
+                    false => {
+                        if payload.len() > 0 {
+                            ClientQueryPayload::IsValidATCQuery(Some(payload.remove(0)))
+                        } else {
+                            ClientQueryPayload::IsValidATCQuery(None)
+                        }
+                    }
+                    true => ClientQueryPayload::IsValidATCResponse(
+                        if payload[0] == "Y" { true } else { false },
+                        if payload.len() > 1 {
+                            Some(payload.remove(0))
+                        } else {
+                            None
+                        },
+                    ),
                 },
                 ClientQueryType::NewATIS => ClientQueryPayload::NewATIS(payload.remove(0)),
                 ClientQueryType::NewInfo => ClientQueryPayload::NewInfo(payload.remove(0)),
                 ClientQueryType::RealName => match is_response {
                     false => ClientQueryPayload::Unknown(payload),
-                    true => ClientQueryPayload::RealName(RealNamePayload::from_payload(&payload))
-                }
+                    true => ClientQueryPayload::RealName(RealNamePayload::from_payload(&payload)),
+                },
                 ClientQueryType::WhoHas => ClientQueryPayload::WhoHas(payload.remove(0)),
-                _ => ClientQueryPayload::Unknown(payload)
+                _ => ClientQueryPayload::Unknown(payload),
             }
-
         } else {
             ClientQueryPayload::Unknown(payload)
         };
-        
+
         return Self {
             is_response: is_response,
             from: fields[0].to_string(),
             to: fields[1].to_string(),
             query_type: query_type,
-            payload: payload
+            payload: payload,
+        };
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct PlaneInfoRequest {
+    pub from: String,
+    pub to: String,
+}
+
+impl PlaneInfoRequest {
+    pub fn new(fields: &Vec<&str>) -> Self {
+        Self {
+            from: fields[0].to_string(),
+            to: fields[1].to_string(),
+        }
+    }
+}
+
+impl Packet for PlaneInfoRequest {
+    fn from_string(fields: &Vec<&str>) -> Self {
+        Self::new(fields)
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum PlaneInfoResponse {
+    Legacy {
+        csl: String,
+        engine_type: EngineType,
+    },
+    Regular {
+        equipment: Option<String>,
+        airline: Option<String>,
+        livery: Option<String>,
+        csl: Option<String>,
+    },
+}
+
+fn find_value(fields: &Vec<&str>, key: &str) -> Option<String> {
+    for &field in fields {
+        if field.to_uppercase().starts_with(key) {
+            return Some(field[key.len() + 1..].to_string());
+        }
+    }
+    None
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct PlaneInfo {
+    pub from: String,
+    pub to: String,
+    pub payload: PlaneInfoResponse,
+}
+
+impl Packet for PlaneInfo {
+    fn from_string(fields: &Vec<&str>) -> Self {
+        Self::new(fields)
+    }
+}
+
+impl PlaneInfo {
+    pub fn new(fields: &Vec<&str>) -> Self {
+        let is_legacy = fields[3] == "X";
+
+        let payload = match is_legacy {
+            true => PlaneInfoResponse::Legacy {
+                csl: fields[6].to_string(),
+                engine_type: to_enum!(fields[5]).unwrap(),
+            },
+            false => PlaneInfoResponse::Regular {
+                equipment: find_value(fields, "EQUIPMENT"),
+                airline: find_value(fields, "AIRLINE"),
+                livery: find_value(fields, "LIVERY"),
+                csl: find_value(fields, "CSL"),
+            },
+        };
+
+        Self {
+            from: fields[0].to_string(),
+            to: fields[1].to_string(),
+            payload,
         }
     }
 }
@@ -654,7 +783,7 @@ pub struct Metar {
     pub is_response: bool,
     pub from: String,
     pub to: String,
-    pub payload: String
+    pub payload: String,
 }
 
 impl Packet for Metar {
@@ -687,7 +816,10 @@ mod tests {
     #[test]
     fn test_facility_convert() {
         assert_eq!(NetworkFacility::from_string(""), NetworkFacility::Undefined);
-        assert_eq!(NetworkFacility::from_string("30"), NetworkFacility::Undefined);
+        assert_eq!(
+            NetworkFacility::from_string("30"),
+            NetworkFacility::Undefined
+        );
         assert_eq!(NetworkFacility::from_string("1"), NetworkFacility::FSS);
     }
 }
