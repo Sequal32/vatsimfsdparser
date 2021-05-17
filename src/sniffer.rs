@@ -6,10 +6,10 @@ use pnet::packet::ethernet::{EtherTypes, EthernetPacket};
 use pnet::packet::ip::IpNextHeaderProtocols;
 use pnet::packet::ipv4::Ipv4Packet;
 use pnet::packet::tcp::TcpPacket;
-use regex::Regex;
-use requests;
+use serde::Deserialize;
 use std::collections::{HashSet, VecDeque};
 use std::net::Ipv4Addr;
+
 pub struct EthernetIpv4TCPPacket<'a> {
     payload: &'a [u8],
     ether_packet: EthernetPacket<'a>,
@@ -138,7 +138,17 @@ impl PacketSniffer {
     }
 }
 
-const VATSIM_SERVER_FEED: &str = "http://cluster.data.vatsim.net/vatsim-servers.txt";
+const VATSIM_SERVER_FEED: &str = "https://data.vatsim.net/v3/vatsim-data.json";
+
+#[derive(Deserialize)]
+struct DataFeed {
+    servers: Vec<Server>,
+}
+
+#[derive(Deserialize)]
+struct Server {
+    hostname_or_ip: String,
+}
 
 #[derive(Debug)]
 pub enum PacketSource {
@@ -162,7 +172,7 @@ impl Sniffer {
     }
 
     pub fn start(&mut self) {
-        self.parse_and_load_server_ips(self.get_server_ips().as_str());
+        self.load_server_ips();
         self.sniffer.start();
     }
 
@@ -208,7 +218,7 @@ impl Sniffer {
         return self.packet_queue.pop_front();
     }
 
-    fn get_server_ips(&self) -> String {
+    fn get_servers(&self) -> Vec<Server> {
         let response =
             requests::get(VATSIM_SERVER_FEED).expect("Could not retrieve VATSIM server list!");
 
@@ -216,53 +226,17 @@ impl Sniffer {
             panic!("Could not retrieve VATSIM server list!");
         }
 
-        return response.text().unwrap().to_string();
+        let data = response
+            .text()
+            .and_then(|x| serde_json::from_str::<DataFeed>(x).ok())
+            .expect("Could not deserialize VATSIM server list!");
+
+        return data.servers;
     }
 
-    fn parse_and_load_server_ips(&mut self, text: &str) {
-        let re = Regex::new(r":(\d+.\d+.\d+.\d+):").unwrap();
-
-        for cap in re.captures_iter(text) {
-            self.search_ips
-                .insert(cap.get(1).unwrap().as_str().to_string());
-        }
-        self.search_ips.shrink_to_fit();
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    use std::str::FromStr;
-    #[test]
-    fn test_parse_ips() {
-        let mut sniffer = Sniffer::new();
-        sniffer.parse_and_load_server_ips(
-            "!GENERAL:
-        VERSION = 8
-        RELOAD = 2
-        UPDATE = 20200619015411
-        ATIS ALLOW MIN = 5
-        CONNECTED CLIENTS = 679
-        ;
-        ;
-        !SERVERS:
-        AFVDATA:18.130.182.47:Toronto, Canada:AFV Beta Test:1:
-        CANADA:165.22.239.218:Toronto, Canada:CANADA:1:
-        GERMANY-1:157.230.25.177:Frankfurt, Germany:GERMANY-1:1:
-        GERMANY-2:157.230.17.198:Frankfurt, Germany:GERMANY-2:1:
-        SINGAPORE:68.183.185.148:Singapore:SINGAPORE:1:
-        UK-1:209.97.177.84:London, UK:UK-1:1:
-        UK-2:161.35.40.246:London, UK:UK-2:1:
-        USA-EAST:134.209.67.219:New York, USA:USA-EAST:1:
-        USA-WEST:165.22.163.56:San Francisco, USA:USA-WEST:1:
-        ;
-        ;   END
-        ",
-        );
-        assert!(sniffer.search_ips.contains(&"165.22.239.218".to_string()));
-        assert!(sniffer.search_ips.contains(&"209.97.177.84".to_string()));
-        assert!(sniffer.search_ips.contains(&"161.35.40.246".to_string()));
-        assert!(sniffer.search_ips.contains(&"18.130.182.47".to_string()));
+    fn load_server_ips(&mut self) {
+        let servers = self.get_servers();
+        self.search_ips
+            .extend(servers.into_iter().map(|s| s.hostname_or_ip));
     }
 }
