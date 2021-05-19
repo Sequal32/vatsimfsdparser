@@ -14,6 +14,7 @@ pub enum PacketTypes {
     FlightStrip(FlightStrip),
     FlightPlan(FlightPlan),
     ClientQuery(ClientQuery),
+    ClientIdentification(ClientIdentification),
     Metar(Metar),
     PlaneInfoRequest(PlaneInfoRequest),
     PlaneInfo(PlaneInfo),
@@ -118,6 +119,9 @@ impl Parser {
                     ))),
                     "AR" => Some(PacketTypes::Metar(Metar::new(fields, true))),
                     "AX" => Some(PacketTypes::Metar(Metar::new(fields, false))),
+                    "ID" => Some(PacketTypes::ClientIdentification(
+                        ClientIdentification::from_string(fields),
+                    )),
                     "CQ" | "CR" => {
                         let is_response = command == "CR";
                         match fields[2] {
