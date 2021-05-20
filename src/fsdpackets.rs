@@ -781,7 +781,7 @@ impl PlaneInfo {
 #[derive(Debug, PartialEq, Clone)]
 pub struct ClientIdentification {
     pub from: String,
-    pub client_id: u16,
+    pub client_id: String,
     pub client_name: String,
     pub major_version: u32,
     pub minor_version: u32,
@@ -794,7 +794,7 @@ impl Packet for ClientIdentification {
     fn from_string(fields: &Vec<&str>) -> Self {
         Self {
             from: fields[0].to_string(),
-            client_id: force_parse!(u16, fields[2]),
+            client_id: fields[2].to_string(),
             client_name: fields[3].to_string(),
             major_version: force_parse!(u32, fields[4]),
             minor_version: force_parse!(u32, fields[5]),
