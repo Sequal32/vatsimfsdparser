@@ -225,6 +225,7 @@ pub struct NetworkClient {
     pub cid: String,
     pub password: String,
     pub rating: NetworkRating,
+    pub simulator_type: Option<SimulatorType>,
     pub protocol_ver: u8,
 }
 
@@ -243,6 +244,7 @@ impl NetworkClient {
                 cid: fields[3].to_string(),
                 password: fields[4].to_string(),
                 rating: NetworkRating::from_string(fields[5]),
+                simulator_type: None,
                 protocol_ver: 0,
                 client_type: client,
             },
@@ -252,6 +254,7 @@ impl NetworkClient {
                 password: fields[3].to_string(),
                 rating: NetworkRating::from_string(fields[4]),
                 protocol_ver: force_parse!(u8, fields[5]),
+                simulator_type: Some(to_enum!(fields[6]).unwrap_or(SimulatorType::Unknown)),
                 real_name: fields[7].to_string(),
                 client_type: client,
             },
